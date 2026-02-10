@@ -63,7 +63,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-1 flex-col gap-1 rounded-xl p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-primary">payments</span>
-              <p className="text-slate-500 dark:text-zinc-400 text-xs font-bold">現金支付</p>
+              <p className="text-slate-500 dark:text-zinc-400 text-xs font-bold">現金收入</p>
             </div>
             <p className="text-xl font-bold dark:text-white">
               {loading ? '--' : `$${(totalCoin * PLAY_PRICE).toLocaleString()}`}
@@ -72,7 +72,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-1 flex-col gap-1 rounded-xl p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-primary">devices</span>
-              <p className="text-slate-500 dark:text-zinc-400 text-xs font-bold">數位支付</p>
+              <p className="text-slate-500 dark:text-zinc-400 text-xs font-bold">電支收入</p>
             </div>
             <p className="text-xl font-bold dark:text-white">
               {loading ? '--' : `$${(totalEpay * PLAY_PRICE).toLocaleString()}`}
