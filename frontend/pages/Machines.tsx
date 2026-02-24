@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MachineStatus, ApiMachine, StoreReadingsResponse } from '../types';
-import { fetchStoreReadings } from '../services/api';
+import { MachineStatus, ReadingsResponse, ReadingItem } from '../types';
+import { fetchReadings } from '../services/api';
 
-const STORE_ID = 73;
-const PLAY_PRICE = 10; // 每次遊玩價格（元）
+const PLAY_PRICE = 10;
 
 function getTimeDiffMinutes(lastReadingTime: string): number {
   const lastTime = new Date(lastReadingTime);
@@ -11,7 +10,7 @@ function getTimeDiffMinutes(lastReadingTime: string): number {
   return Math.floor((now.getTime() - lastTime.getTime()) / (1000 * 60));
 }
 
-function getMachineStatus(machine: ApiMachine): MachineStatus {
+function getMachineStatus(machine: ReadingItem): MachineStatus {
   const diffMinutes = getTimeDiffMinutes(machine.last_reading_time);
   if (diffMinutes > 60) {
     return MachineStatus.OFFLINE;
@@ -24,22 +23,29 @@ function formatTime(isoString: string): string {
   return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
 }
 
+function getTodayString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+type FilterStatus = 'all' | 'online' | 'offline';
+
 export const Machines: React.FC = () => {
-  const [storeData, setStoreData] = useState<StoreReadingsResponse | null>(null);
+  const [readingsData, setReadingsData] = useState<ReadingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterStatus>('all');
 
   useEffect(() => {
     loadData();
-    // 每 30 秒自動刷新
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, []);
 
   async function loadData() {
     try {
-      const data = await fetchStoreReadings(STORE_ID);
-      setStoreData(data);
+      const data = await fetchReadings(getTodayString());
+      setReadingsData(data);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '載入失敗');
@@ -48,13 +54,25 @@ export const Machines: React.FC = () => {
     }
   }
 
-  // 依機台編號排序
-  const sortedMachines = storeData?.machines
+  const allMachines = readingsData?.items || [];
+
+  // 依 store_name + machine_name 排序
+  const sortedMachines = allMachines
     .slice()
-    .sort((a, b) => a.location_machine_number.localeCompare(b.location_machine_number, undefined, { numeric: true })) || [];
+    .sort((a, b) => {
+      const storeCompare = a.store_name.localeCompare(b.store_name, 'zh-TW');
+      if (storeCompare !== 0) return storeCompare;
+      return a.machine_name.localeCompare(b.machine_name, undefined, { numeric: true });
+    });
 
   const onlineCount = sortedMachines.filter(m => getMachineStatus(m) === MachineStatus.ONLINE).length;
   const offlineCount = sortedMachines.filter(m => getMachineStatus(m) === MachineStatus.OFFLINE).length;
+
+  const filteredMachines = sortedMachines.filter(m => {
+    if (filter === 'online') return getMachineStatus(m) === MachineStatus.ONLINE;
+    if (filter === 'offline') return getMachineStatus(m) === MachineStatus.OFFLINE;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-background-dark">
@@ -66,22 +84,34 @@ export const Machines: React.FC = () => {
               <span className="material-symbols-outlined text-2xl text-primary">analytics</span>
               <h1 className="text-xl font-bold tracking-tight text-white">機台監控清單</h1>
             </div>
-            {storeData && (
-              <span className="text-xs text-slate-500 ml-8">{storeData.store_name}</span>
-            )}
           </div>
           <button onClick={loadData} className="text-slate-400 hover:text-primary transition-colors">
             <span className="material-symbols-outlined">refresh</span>
           </button>
         </div>
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-          <button className="px-4 py-1 rounded-full bg-primary text-black text-xs font-bold shrink-0">
-            全部 {storeData?.total_machines || 0}
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
+              filter === 'all' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+            }`}
+          >
+            全部 {readingsData?.total_machines || 0}
           </button>
-          <button className="px-4 py-1 rounded-full bg-white/5 text-slate-300 text-xs font-bold shrink-0">
+          <button
+            onClick={() => setFilter('online')}
+            className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
+              filter === 'online' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+            }`}
+          >
             上線 <span className="text-neon-green ml-0.5">{onlineCount}</span>
           </button>
-          <button className="px-4 py-1 rounded-full bg-white/5 text-slate-300 text-xs font-bold shrink-0">
+          <button
+            onClick={() => setFilter('offline')}
+            className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
+              filter === 'offline' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+            }`}
+          >
             斷線 <span className="text-slate-400 ml-0.5">{offlineCount}</span>
           </button>
         </div>
@@ -100,33 +130,26 @@ export const Machines: React.FC = () => {
           </div>
         )}
 
-        {!loading && !error && sortedMachines.map((machine) => {
+        {!loading && !error && filteredMachines.map((machine, idx) => {
           const status = getMachineStatus(machine);
-          const displayName = machine.machine_name || machine.reading_machine_name || machine.location_machine_number;
-          const displayId = `No.${machine.location_machine_number.padStart(2, '0')}`;
-          const revenue = machine.total_play_times * PLAY_PRICE;
-          const avgPayout = machine.gift_out_times > 0
-            ? Math.round(revenue / machine.gift_out_times)
+          const revenue = machine.total_play_count * PLAY_PRICE;
+          const avgPayout = machine.gift_out_count > 0
+            ? Math.round(revenue / machine.gift_out_count)
             : 0;
 
           return (
             <div
-              key={machine.machine_code}
-              className={`
-                bg-card-dark rounded-xl p-4 shadow-lg border relative overflow-hidden transition-all
-                ${status === MachineStatus.ERROR ? 'border-bright-red/30' : 'border-white/10'}
-              `}
+              key={`${machine.cpu_id}-${idx}`}
+              className="bg-card-dark rounded-xl p-4 shadow-lg border border-white/10 relative overflow-hidden transition-all"
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <span className="text-primary font-black text-lg tracking-tighter leading-none">
-                      {displayId}
-                    </span>
-                    <span className="text-white font-bold text-lg leading-none">
-                      {displayName}
+                      {machine.machine_name}
                     </span>
                   </div>
+                  <span className="text-[11px] text-slate-500 mt-0.5">{machine.store_name}</span>
 
                   <div className="flex items-center gap-1.5 mt-1">
                     {status === MachineStatus.ONLINE && (
@@ -151,32 +174,32 @@ export const Machines: React.FC = () => {
               <div className="grid grid-cols-4 gap-y-4 gap-x-2">
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-500 font-medium mb-0.5">總遊玩</span>
-                  <span className={`text-[15px] font-bold tracking-tight text-white`}>
-                    {machine.total_play_times.toLocaleString()}
+                  <span className="text-[15px] font-bold tracking-tight text-white">
+                    {machine.total_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-500 font-medium mb-0.5">投幣</span>
-                  <span className={`text-[15px] font-bold tracking-tight text-white`}>
-                    {machine.coin_play_times.toLocaleString()}
+                  <span className="text-[15px] font-bold tracking-tight text-white">
+                    {machine.coin_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-500 font-medium mb-0.5">電支</span>
-                  <span className={`text-[15px] font-bold tracking-tight text-primary`}>
-                    {machine.epay_play_times.toLocaleString()}
+                  <span className="text-[15px] font-bold tracking-tight text-primary">
+                    {machine.epay_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-[11px] text-slate-500 font-medium mb-0.5">營業額</span>
-                  <span className={`text-[15px] font-bold tracking-tight text-neon-green`}>
+                  <span className="text-[15px] font-bold tracking-tight text-neon-green">
                     ${revenue.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-500 font-medium mb-0.5">出獎數</span>
-                  <span className={`text-[15px] font-bold tracking-tight text-white`}>
-                    {machine.gift_out_times}
+                  <span className="text-[15px] font-bold tracking-tight text-white">
+                    {machine.gift_out_count}
                   </span>
                 </div>
                 <div className="flex flex-col">
@@ -190,7 +213,6 @@ export const Machines: React.FC = () => {
             </div>
           );
         })}
-        {/* Spacer for scroll */}
         <div className="h-6"></div>
       </main>
     </div>

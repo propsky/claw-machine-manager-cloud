@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { WithdrawalSheet } from '../components/WithdrawalSheet';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { useNavigate } from 'react-router-dom';
+import { fetchBalance, fetchPayments, fetchActivity } from '../services/api';
+import type { BalanceResponse, PaymentsResponse, ActivityResponse } from '../types';
 
 type FilterType = 'current' | 'prev1' | 'prev2' | 'custom';
 
@@ -17,21 +19,24 @@ function getMonthRange(offset: number) {
     label: `${year}/${String(month).padStart(2, '0')}`,
     title: `${year}年 ${month}月 帳務結算`,
     period: `${String(month).padStart(2, '0')}/01 - ${String(month).padStart(2, '0')}/${String(end.getDate()).padStart(2, '0')}`,
+    startStr: `${year}-${String(month).padStart(2, '0')}-01`,
+    endStr: `${year}-${String(month).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`,
   };
 }
 
-// Mock 各月結算資料
-const mockStatements: Record<string, { total: number; rent: number; fee: number }> = {
-  current: { total: 5120, rent: 1440, fee: 92 },
-  prev1: { total: 4380, rent: 1440, fee: 79 },
-  prev2: { total: 3860, rent: 1440, fee: 69 },
-};
+function formatDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export const Finance: React.FC = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isDateSheetOpen, setIsDateSheetOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('current');
   const [customRange, setCustomRange] = useState<{ start: string; end: string } | null>(null);
+  const [balanceData, setBalanceData] = useState<BalanceResponse | null>(null);
+  const [paymentsData, setPaymentsData] = useState<PaymentsResponse | null>(null);
+  const [activityData, setActivityData] = useState<ActivityResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const currentMonth = useMemo(() => getMonthRange(0), []);
@@ -58,6 +63,8 @@ export const Finance: React.FC = () => {
           return {
             title: '自訂區間 帳務結算',
             period: `${fmt(s)} - ${fmt(e)}`,
+            startStr: customRange.start,
+            endStr: customRange.end,
           };
         }
         return currentMonth;
@@ -65,10 +72,65 @@ export const Finance: React.FC = () => {
     }
   }, [selectedFilter, customRange, currentMonth, prevMonth1, prevMonth2]);
 
-  const statement = selectedFilter === 'custom'
-    ? { total: 3200, rent: 960, fee: 58 }
-    : mockStatements[selectedFilter];
-  const netIncome = statement.total - statement.rent - statement.fee;
+  // 取得日期範圍
+  const dateRange = useMemo(() => {
+    switch (selectedFilter) {
+      case 'current': return { startStr: currentMonth.startStr, endStr: currentMonth.endStr };
+      case 'prev1': return { startStr: prevMonth1.startStr, endStr: prevMonth1.endStr };
+      case 'prev2': return { startStr: prevMonth2.startStr, endStr: prevMonth2.endStr };
+      case 'custom':
+        if (customRange) return { startStr: customRange.start, endStr: customRange.end };
+        return { startStr: currentMonth.startStr, endStr: currentMonth.endStr };
+    }
+  }, [selectedFilter, customRange, currentMonth, prevMonth1, prevMonth2]);
+
+  // 載入餘額和帳務紀錄（只載入一次）
+  useEffect(() => {
+    async function loadInitial() {
+      try {
+        const [balance, activity] = await Promise.all([
+          fetchBalance(),
+          fetchActivity(),
+        ]);
+        setBalanceData(balance);
+        setActivityData(activity);
+      } catch {
+        // silent
+      }
+    }
+    loadInitial();
+  }, []);
+
+  // 日期範圍變更時重新載入 payments
+  useEffect(() => {
+    async function loadPayments() {
+      setLoading(true);
+      try {
+        const payments = await fetchPayments(dateRange.startStr, dateRange.endStr);
+        setPaymentsData(payments);
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadPayments();
+  }, [dateRange.startStr, dateRange.endStr]);
+
+  // 使用 API 回傳的 summary 彙總資料
+  const statement = useMemo(() => {
+    const s = paymentsData?.summary;
+    if (!s) return { total: 0, rent: 0, fee: 0, income: 0 };
+    return {
+      total: s.total_card_amount,
+      rent: s.total_actual_daily_rent,
+      fee: s.total_actual_transaction_fee,
+      income: s.total_actual_income,
+    };
+  }, [paymentsData]);
+
+  const availableBalance = balanceData?.balance?.available_amount ?? 0;
+  const recentActivity = activityData?.items?.slice(0, 5) || [];
 
   const handleCustomConfirm = (start: string, end: string) => {
     setCustomRange({ start, end });
@@ -94,13 +156,15 @@ export const Finance: React.FC = () => {
         <section className="relative overflow-hidden rounded-xl bg-card-dark p-6 shadow-xl border border-white/5">
           <div className="absolute -right-12 -top-12 size-40 bg-primary/10 rounded-full blur-3xl"></div>
           <div className="flex flex-col gap-1">
-            <span className="text-white/60 text-sm font-medium">本月可提領餘額</span>
-            <h2 className="text-4xl font-bold text-success tracking-tight">$2,861</h2>
+            <span className="text-white/60 text-sm font-medium">可提領餘額</span>
+            <h2 className="text-4xl font-bold text-success tracking-tight">
+              {balanceData ? `$${availableBalance.toLocaleString()}` : '--'}
+            </h2>
           </div>
           <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-4">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-white/40 text-sm">update</span>
-              <p className="text-white/40 text-xs">最後更新：2026-01-31 23:59</p>
+              <p className="text-white/40 text-xs">即時查詢</p>
             </div>
             <div className="size-8 rounded-full bg-white/5 flex items-center justify-center">
               <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
@@ -142,24 +206,32 @@ export const Finance: React.FC = () => {
               </div>
             </div>
             <div className="p-5 space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-white/70 text-sm">總刷卡金額</span>
-                <span className="font-bold text-white tracking-wide">${statement.total.toLocaleString()}</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/50">減：設備日租費</span>
-                  <span className="text-red-400 font-medium">-${statement.rent.toLocaleString()}</span>
+              {loading ? (
+                <div className="flex items-center justify-center py-6">
+                  <span className="material-symbols-outlined text-2xl text-primary animate-spin">progress_activity</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/50">減：金流手續費</span>
-                  <span className="text-red-400 font-medium">-${statement.fee.toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="pt-4 border-t border-white/10 flex justify-between items-end">
-                <span className="text-sm font-medium text-white/90 pb-0.5">本期實際入帳</span>
-                <span className="text-2xl font-bold text-primary tracking-tight">${netIncome.toLocaleString()}</span>
-              </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-white/70 text-sm">總刷卡金額</span>
+                    <span className="font-bold text-white tracking-wide">${statement.total.toLocaleString()}</span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-white/50">減：設備日租費</span>
+                      <span className="text-red-400 font-medium">-${statement.rent.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-white/50">減：金流手續費</span>
+                      <span className="text-red-400 font-medium">-${statement.fee.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t border-white/10 flex justify-between items-end">
+                    <span className="text-sm font-medium text-white/90 pb-0.5">本期實際入帳</span>
+                    <span className="text-2xl font-bold text-primary tracking-tight">${statement.income.toLocaleString()}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -173,71 +245,50 @@ export const Finance: React.FC = () => {
             <span className="material-symbols-outlined">payments</span>
             申請提領款項
           </button>
-
-          <div className="flex items-center justify-between bg-card-dark rounded-xl px-4 py-3 border border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-white/5 flex items-center justify-center">
-                <span className="material-symbols-outlined text-white/60">account_balance</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">國泰世華 (013)</p>
-                <p className="text-xs text-white/40">**** 0570</p>
-              </div>
-            </div>
-            <button className="size-8 rounded-full hover:bg-white/5 flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[20px]">edit_square</span>
-            </button>
-          </div>
         </section>
 
         {/* Transactions */}
         <section className="space-y-4 pb-10">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-white/40">最近 5 筆帳務紀錄</h3>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-white/40">最近帳務紀錄</h3>
             <button onClick={() => navigate('/transactions')} className="text-xs text-primary font-medium">查看全部</button>
           </div>
-          <div className="bg-card-dark rounded-xl overflow-hidden border border-white/5 divide-y divide-white/5">
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-green-500 text-[20px]">add_circle</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">每日結算</p>
-                  <p className="text-[10px] text-white/40">1月 31, 2026 • 23:59</p>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-green-500">+$120.00</span>
+          {recentActivity.length === 0 ? (
+            <div className="bg-card-dark rounded-xl p-6 border border-white/5 text-center text-white/30 text-sm">
+              暫無紀錄
             </div>
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-red-500 text-[20px]">logout</span>
+          ) : (
+            <div className="bg-card-dark rounded-xl overflow-hidden border border-white/5 divide-y divide-white/5">
+              {recentActivity.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`size-10 rounded-full flex items-center justify-center ${
+                      item.type === 'income' ? 'bg-green-500/10' : 'bg-red-500/10'
+                    }`}>
+                      <span className={`material-symbols-outlined text-[20px] ${
+                        item.type === 'income' ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {item.type === 'income' ? 'add_circle' : 'logout'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{item.description}</p>
+                      <p className="text-[10px] text-white/40">{item.date}</p>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-bold ${
+                    item.type === 'income' ? 'text-green-500' : 'text-white'
+                  }`}>
+                    {item.type === 'income' ? '+' : '-'}${item.amount.toLocaleString()}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">提領至銀行</p>
-                  <p className="text-[10px] text-white/40">1月 25, 2026 • 10:15</p>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-white">-$1,500.00</span>
+              ))}
             </div>
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-green-500 text-[20px]">add_circle</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">每日結算</p>
-                  <p className="text-[10px] text-white/40">1月 25, 2026 • 23:59</p>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-green-500">+$385.00</span>
-            </div>
-          </div>
+          )}
         </section>
       </main>
 
-      <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={2861} />
+      <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={availableBalance} />
       <DateRangeSheet
         isOpen={isDateSheetOpen}
         onClose={() => setIsDateSheetOpen(false)}

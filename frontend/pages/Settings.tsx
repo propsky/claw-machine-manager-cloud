@@ -1,4 +1,5 @@
 import React from 'react';
+import { logout } from '../services/auth';
 
 export const Settings: React.FC = () => {
   return (
@@ -96,7 +97,10 @@ export const Settings: React.FC = () => {
 
         {/* Logout */}
         <section className="pt-4">
-          <button className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+          <button
+            onClick={() => logout()}
+            className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
             <span className="material-symbols-outlined">logout</span>
             登出帳號
           </button>
