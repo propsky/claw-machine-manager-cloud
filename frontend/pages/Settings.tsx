@@ -1,7 +1,125 @@
-import React from 'react';
-import { logout } from '../services/auth';
+import React, { useState, useEffect } from 'react';
+import { FavoriteBankAccount } from '../types';
+import { fetchBankAccounts, createBankAccount, deleteBankAccount, setDefaultBankAccount } from '../services/api';
+import { BANK_CODES, getBankName } from '../constants/bankCodes';
 
 export const Settings: React.FC = () => {
+  const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<FavoriteBankAccount | null>(null);
+  
+  // 表單狀態
+  const [formData, setFormData] = useState({
+    bank_code: '',
+    bank_name: '',
+    branch_name: '',
+    account_number: '',
+    account_holder_name: '',
+    is_default: false,
+  });
+
+  // 載入銀行帳戶列表
+  useEffect(() => {
+    loadBankAccounts();
+  }, []);
+
+  const loadBankAccounts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchBankAccounts();
+      setBankAccounts(data.accounts);
+    } catch (err: any) {
+      console.error('載入銀行帳戶失敗:', err);
+      setError(err.message || '載入失敗');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 銀行選單變更時自動填入銀行名稱
+  const handleBankCodeChange = (code: string) => {
+    const bank = BANK_CODES.find(b => b.code === code);
+    setFormData({
+      ...formData,
+      bank_code: code,
+      bank_name: bank?.name || '',
+    });
+  };
+
+  // 提交表單
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setError(null);
+      
+      const accountData = {
+        bank_code: formData.bank_code,
+        bank_name: formData.bank_name,
+        branch_name: formData.branch_name || undefined,
+        account_number: formData.account_number,
+        account_holder_name: formData.account_holder_name,
+        is_default: formData.is_default,
+      };
+
+      await createBankAccount(accountData);
+      
+      // 重置表單
+      setFormData({
+        bank_code: '',
+        bank_name: '',
+        branch_name: '',
+        account_number: '',
+        account_holder_name: '',
+        is_default: false,
+      });
+      setShowAddForm(false);
+      
+      // 重新載入列表
+      await loadBankAccounts();
+      alert('銀行帳戶新增成功！');
+    } catch (err: any) {
+      console.error('新增銀行帳戶失敗:', err);
+      setError(err.message || '新增失敗');
+    }
+  };
+
+  // 刪除帳戶
+  const handleDelete = async (id: number) => {
+    if (!confirm('確定要刪除這個銀行帳戶嗎？')) return;
+    
+    try {
+      setError(null);
+      await deleteBankAccount(id);
+      await loadBankAccounts();
+      alert('銀行帳戶已刪除');
+    } catch (err: any) {
+      console.error('刪除銀行帳戶失敗:', err);
+      setError(err.message || '刪除失敗');
+    }
+  };
+
+  // 設為預設
+  const handleSetDefault = async (id: number) => {
+    try {
+      setError(null);
+      await setDefaultBankAccount(id);
+      await loadBankAccounts();
+      alert('已設為預設帳戶');
+    } catch (err: any) {
+      console.error('設定預設失敗:', err);
+      setError(err.message || '設定失敗');
+    }
+  };
+
+  // 取得預設帳戶顯示
+  const defaultAccount = bankAccounts.find(a => a.is_default);
+  const defaultDisplay = defaultAccount 
+    ? `${defaultAccount.bank_name} (${defaultAccount.bank_code}) **** ${defaultAccount.account_number.slice(-4)}`
+    : '尚未設定';
+
   return (
     <div className="min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-sans">
       <header className="sticky top-0 z-30 bg-background-light/80 dark:bg-background-dark/80 ios-blur px-4 py-3 flex items-center justify-between border-b border-slate-200 dark:border-white/10">
@@ -11,6 +129,13 @@ export const Settings: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-md mx-auto w-full">
+        {/* 錯誤訊息 */}
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
         {/* Account Section */}
         <section className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">帳戶</h3>
@@ -27,20 +152,187 @@ export const Settings: React.FC = () => {
               </div>
               <span className="material-symbols-outlined text-white/20">chevron_right</span>
             </button>
-            <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-white/60">account_balance</span>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold">收款銀行帳戶</p>
-                  <p className="text-xs text-white/40">國泰世華 (013) **** 0570</p>
+            
+            {/* 銀行帳戶 - 可點擊展開 */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-4">
+                  <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-white/60">account_balance</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold">收款銀行帳戶</p>
+                    <p className="text-xs text-white/40">{defaultDisplay}</p>
+                  </div>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-white/20">chevron_right</span>
-            </button>
+
+              {/* 銀行帳戶列表 */}
+              {loading ? (
+                <div className="text-center py-4 text-white/40 text-sm">載入中...</div>
+              ) : bankAccounts.length > 0 ? (
+                <div className="space-y-2 mt-4">
+                  {bankAccounts.map((account) => (
+                    <div 
+                      key={account.id} 
+                      className={`p-3 rounded-lg border ${
+                        account.is_default 
+                          ? 'border-primary/50 bg-primary/10' 
+                          : 'border-white/5 bg-white/5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-bold">
+                            {account.bank_name}
+                            {account.is_default && <span className="ml-2 text-xs text-primary">(預設)</span>}
+                          </p>
+                          <p className="text-xs text-white/40">
+                            {account.branch_name || ''} {account.account_number}
+                          </p>
+                          <p className="text-xs text-white/40">{account.account_holder_name}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {!account.is_default && (
+                            <button
+                              onClick={() => handleSetDefault(account.id)}
+                              className="text-xs px-2 py-1 bg-primary/20 text-primary rounded hover:bg-primary/30"
+                            >
+                              設為預設
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(account.id)}
+                            className="text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                          >
+                            刪除
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center py-4 text-white/40 text-sm">尚未設定銀行帳戶</p>
+              )}
+
+              {/* 新增按鈕 */}
+              {!showAddForm && (
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  className="w-full mt-4 py-3 bg-primary/20 text-primary rounded-lg text-sm font-bold hover:bg-primary/30 transition-colors flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  新增銀行帳戶
+                </button>
+              )}
+            </div>
           </div>
         </section>
+
+        {/* 新增表單 */}
+        {showAddForm && (
+          <div className="bg-card-dark rounded-xl border border-white/5 p-4 space-y-4">
+            <h4 className="text-sm font-bold">新增銀行帳戶</h4>
+            
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {/* 銀行代碼 */}
+              <div>
+                <label className="block text-xs text-white/40 mb-1">銀行</label>
+                <select
+                  value={formData.bank_code}
+                  onChange={(e) => handleBankCodeChange(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                >
+                  <option value="">選擇銀行</option>
+                  {BANK_CODES.map((bank) => (
+                    <option key={bank.code} value={bank.code}>
+                      {bank.name} ({bank.code}) - {bank.fee === 0 ? '免手續費' : `手續費 $${bank.fee}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 分行名稱 */}
+              <div>
+                <label className="block text-xs text-white/40 mb-1">分行名稱（選填）</label>
+                <input
+                  type="text"
+                  value={formData.branch_name}
+                  onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
+                  placeholder="例如：桃園分行"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* 帳號 */}
+              <div>
+                <label className="block text-xs text-white/40 mb-1">帳號</label>
+                <input
+                  type="text"
+                  value={formData.account_number}
+                  onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
+                  placeholder="請輸入帳號"
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* 戶名 */}
+              <div>
+                <label className="block text-xs text-white/40 mb-1">戶名</label>
+                <input
+                  type="text"
+                  value={formData.account_holder_name}
+                  onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
+                  placeholder="請輸入戶名"
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* 設為預設 */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_default"
+                  checked={formData.is_default}
+                  onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
+                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
+                />
+                <label htmlFor="is_default" className="text-sm">設為預設帳戶</label>
+              </div>
+
+              {/* 按鈕 */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setFormData({
+                      bank_code: '',
+                      bank_name: '',
+                      branch_name: '',
+                      account_number: '',
+                      account_holder_name: '',
+                      is_default: false,
+                    });
+                  }}
+                  className="flex-1 py-2 bg-white/10 text-white rounded-lg text-sm font-bold"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-primary text-black rounded-lg text-sm font-bold"
+                >
+                  儲存
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Preferences Section */}
         <section className="space-y-2">
@@ -97,10 +389,7 @@ export const Settings: React.FC = () => {
 
         {/* Logout */}
         <section className="pt-4">
-          <button
-            onClick={() => logout()}
-            className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-          >
+          <button className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
             <span className="material-symbols-outlined">logout</span>
             登出帳號
           </button>
