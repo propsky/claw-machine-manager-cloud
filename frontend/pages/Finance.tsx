@@ -132,6 +132,20 @@ export const Finance: React.FC = () => {
   const availableBalance = balanceData?.balance?.available_amount ?? 0;
   const recentActivity = activityData?.items?.slice(0, 5) || [];
 
+  // 重新載入餘額和帳務紀錄
+  const reloadData = async () => {
+    try {
+      const [balance, activity] = await Promise.all([
+        fetchBalance(),
+        fetchActivity(),
+      ]);
+      setBalanceData(balance);
+      setActivityData(activity);
+    } catch {
+      // silent
+    }
+  };
+
   const handleCustomConfirm = (start: string, end: string) => {
     setCustomRange({ start, end });
     setSelectedFilter('custom');
@@ -273,11 +287,11 @@ export const Finance: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">{item.description}</p>
-                      <p className="text-[10px] text-white/40">{item.date}</p>
+                      <p className="text-[10px] text-white/40">{item.date} {item.type === 'withdrawal' && '・已申請'}</p>
                     </div>
                   </div>
                   <span className={`text-sm font-bold ${
-                    item.type === 'income' ? 'text-green-500' : 'text-white'
+                    item.type === 'income' ? 'text-green-500' : 'text-red-500'
                   }`}>
                     {item.type === 'income' ? '+' : '-'}${item.amount.toLocaleString()}
                   </span>
@@ -288,7 +302,7 @@ export const Finance: React.FC = () => {
         </section>
       </main>
 
-      <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={availableBalance} />
+      <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={availableBalance} onSuccess={reloadData} />
       <DateRangeSheet
         isOpen={isDateSheetOpen}
         onClose={() => setIsDateSheetOpen(false)}

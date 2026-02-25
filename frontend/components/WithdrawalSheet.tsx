@@ -1,12 +1,67 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { FavoriteBankAccount } from '../types';
+import { fetchBankAccounts, applyWithdrawal } from '../services/api';
 
 interface WithdrawalSheetProps {
   isOpen: boolean;
   onClose: () => void;
   amount: number;
+  onSuccess?: () => void;
 }
 
-export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClose, amount }) => {
+export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClose, amount, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<FavoriteBankAccount | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadBankAccounts();
+      setError(null);
+      setSuccess(false);
+    }
+  }, [isOpen]);
+
+  const loadBankAccounts = async () => {
+    try {
+      const data = await fetchBankAccounts();
+      // 找預設帳戶，沒有的話用第一個
+      const defaultAccount = data.accounts.find(a => a.is_default) || data.accounts[0] || null;
+      setBankAccounts(data.accounts);
+      setSelectedAccount(defaultAccount);
+    } catch (err) {
+      console.error('載入銀行帳戶失敗:', err);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedAccount) {
+      setError('請先設定銀行帳戶');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await applyWithdrawal(amount);
+      setSuccess(true);
+      onSuccess?.();
+      // 2 秒後關閉
+      setTimeout(() => {
+        onClose();
+        setSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      console.error('提領失敗:', err);
+      setError(err.message || '提領失敗，請稍後再試');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -35,67 +90,103 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
 
         {/* Content Area */}
         <div className="px-6 space-y-6 z-10">
-          {/* Amount Input Display */}
-          <div className="flex flex-col gap-2">
-            <p className="text-white/70 text-sm font-medium">提領金額</p>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
-              <input 
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-10 pr-4 text-white text-2xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" 
-                readOnly 
-                type="text" 
-                value={amount.toLocaleString()}
-              />
+          {/* Success Message */}
+          {success ? (
+            <div className="flex flex-col items-center py-8">
+              <div className="size-16 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
+                <span className="material-symbols-outlined text-green-500 text-4xl">check_circle</span>
+              </div>
+              <p className="text-white text-lg font-bold">提領申請已提交</p>
+              <p className="text-white/50 text-sm mt-1">預計 3 個工作天內完成撥款</p>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Amount Input Display */}
+              <div className="flex flex-col gap-2">
+                <p className="text-white/70 text-sm font-medium">提領金額</p>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
+                  <input 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-10 pr-4 text-white text-2xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" 
+                    readOnly 
+                    type="text" 
+                    value={amount.toLocaleString()}
+                  />
+                </div>
+              </div>
 
-          {/* Info Cards */}
-          <div className="space-y-3">
-            {/* Bank Account */}
-            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
-              <div className="text-primary bg-primary/10 flex items-center justify-center rounded-lg shrink-0 size-12">
-                <span className="material-symbols-outlined">account_balance</span>
+              {/* Bank Account */}
+              <div className="flex flex-col gap-2">
+                <p className="text-white/70 text-sm font-medium">提領帳戶</p>
+                {selectedAccount ? (
+                  <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
+                    <div className="text-primary bg-primary/10 flex items-center justify-center rounded-lg shrink-0 size-12">
+                      <span className="material-symbols-outlined">account_balance</span>
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <p className="text-white text-base font-semibold">{selectedAccount.bank_name}</p>
+                      <p className="text-white/50 text-xs">帳號：{selectedAccount.account_number}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-300 text-sm">
+                    請先在設定頁面新增銀行帳戶
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col flex-1">
-                <p className="text-white text-base font-semibold">國泰世華 (0570)</p>
-                <p className="text-white/50 text-xs uppercase tracking-wider">提領帳戶</p>
-              </div>
-              <span className="material-symbols-outlined text-white/30">chevron_right</span>
-            </div>
-            
-            {/* Processing Time */}
-            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
-              <div className="text-primary bg-primary/10 flex items-center justify-center rounded-lg shrink-0 size-12">
-                <span className="material-symbols-outlined">schedule</span>
-              </div>
-              <div className="flex flex-col flex-1">
-                <p className="text-white text-base font-semibold">3 個工作天</p>
-                <p className="text-white/50 text-xs uppercase tracking-wider">預計撥款時間</p>
-              </div>
-            </div>
-          </div>
 
-          {/* Warnings/Notes */}
-          <p className="text-white/40 text-[11px] leading-relaxed px-1">
-             點擊「確認提領」即代表您同意本平台的服務條款。手續費 $15 將從提領金額中扣除。
-          </p>
+              {/* Processing Time */}
+              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
+                <div className="text-primary bg-primary/10 flex items-center justify-center rounded-lg shrink-0 size-12">
+                  <span className="material-symbols-outlined">schedule</span>
+                </div>
+                <div className="flex flex-col flex-1">
+                  <p className="text-white text-base font-semibold">3 個工作天</p>
+                  <p className="text-white/50 text-xs uppercase tracking-wider">預計撥款時間</p>
+                </div>
+              </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-3 pt-4">
-            <button 
-                onClick={onClose}
-                className="w-full bg-primary hover:bg-primary/90 text-background-dark font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-95"
-            >
-              確認提領
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-            <button 
-                onClick={onClose}
-                className="w-full bg-white/5 hover:bg-white/10 text-white font-medium py-4 rounded-xl transition-colors active:scale-95"
-            >
-              取消
-            </button>
-          </div>
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Warnings/Notes */}
+              <p className="text-white/40 text-[11px] leading-relaxed px-1">
+                 點擊「確認提領」即代表您同意本平台的服務條款。手續費 $15 將從提領金額中扣除。
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 pt-4">
+                <button 
+                  onClick={handleSubmit}
+                  disabled={loading || !selectedAccount}
+                  className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-background-dark font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-95"
+                >
+                  {loading ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                      處理中...
+                    </>
+                  ) : (
+                    <>
+                      確認提領
+                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={onClose}
+                  disabled={loading}
+                  className="w-full bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white font-medium py-4 rounded-xl transition-colors active:scale-95"
+                >
+                  取消
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
