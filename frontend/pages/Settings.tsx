@@ -381,7 +381,7 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold">版本資訊</p>
-                  <p className="text-xs text-white/40">Version 2.5.2 (Build 20260225)</p>
+                  <p className="text-xs text-white/40">Version 2.5.3 (Build 20260225)</p>
                 </div>
               </div>
               <span className="text-xs text-white/20 px-2 py-1 bg-white/5 rounded-md font-mono">最新版本</span>
