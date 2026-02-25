@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { FavoriteBankAccount } from '../types';
 import { fetchBankAccounts, createBankAccount, deleteBankAccount, setDefaultBankAccount } from '../services/api';
 import { BANK_CODES, getBankName } from '../constants/bankCodes';
+import { Toast, ToastType } from '../components/Toast';
 
 export const Settings: React.FC = () => {
   const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FavoriteBankAccount | null>(null);
   
@@ -81,7 +83,7 @@ export const Settings: React.FC = () => {
       
       // 重新載入列表
       await loadBankAccounts();
-      alert('銀行帳戶新增成功！');
+      setToast({ message: '銀行帳戶新增成功！', type: 'success' });
     } catch (err: any) {
       console.error('新增銀行帳戶失敗:', err);
       setError('新增銀行帳戶失敗，請稍後再試');
@@ -96,7 +98,7 @@ export const Settings: React.FC = () => {
       setError(null);
       await deleteBankAccount(id);
       await loadBankAccounts();
-      alert('銀行帳戶已刪除');
+      setToast({ message: '銀行帳戶已刪除', type: 'success' });
     } catch (err: any) {
       console.error('刪除銀行帳戶失敗:', err);
       setError('刪除銀行帳戶失敗，請稍後再試');
@@ -109,7 +111,7 @@ export const Settings: React.FC = () => {
       setError(null);
       await setDefaultBankAccount(id);
       await loadBankAccounts();
-      alert('已設為預設帳戶');
+      setToast({ message: '已設為預設帳戶', type: 'success' });
     } catch (err: any) {
       console.error('設定預設失敗:', err);
       setError('設定預設帳戶失敗，請稍後再試');
@@ -398,6 +400,15 @@ export const Settings: React.FC = () => {
           <p className="text-center text-[10px] text-white/20 mt-6">Claw Machine Manager Cloud © 2023</p>
         </section>
       </main>
+
+      {/* Toast 提示 */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };
