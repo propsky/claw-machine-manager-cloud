@@ -36,7 +36,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
     try {
       // 檢查使用者資料是否完整
       const userProfile = await fetchUserProfile();
-      const isComplete = !!(userProfile.real_name && userProfile.bank_account && userProfile.id_card_number);
+      const isComplete = !!(userProfile.real_name && userProfile.phone && userProfile.id_card_number);
       setProfileComplete(isComplete);
 
       if (!isComplete) {
