@@ -1,38 +1,109 @@
-import { StoreReadingsResponse, FavoriteBankAccount, FavoriteBankAccountListResponse, WithdrawalApplyResponse } from '../types';
+import { getToken, logout } from './auth';
+import type {
+  ReadingsResponse,
+  MachinesStatusResponse,
+  BalanceResponse,
+  ActivityResponse,
+  PaymentsResponse,
+  FavoriteBankAccount,
+  FavoriteBankAccountListResponse,
+  WithdrawalApplyResponse,
+  StoreReadingsResponse,
+} from '../types';
 
-const SMARTPAY_API_KEY = import.meta.env.VITE_SMARTPAY_API_KEY || '';
 const isDev = import.meta.env.DEV;
 
-// 通用 API 請求函數
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('token');
-  
-  const headers: HeadersInit = {
+async function authFetch(url: string, options?: RequestInit): Promise<Response> {
+  const token = getToken();
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...options.headers,
+    ...((options?.headers as Record<string, string>) || {}),
+    'Authorization': `Bearer ${token}`,
   };
 
-  const baseUrl = isDev ? '/api' : '';
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    logout();
+    throw new Error('登入已過期，請重新登入');
+  }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `API Error: ${response.status}`);
+    throw new Error(`API Error: ${response.status}`);
+  }
+
+  return response;
+}
+
+function getBaseUrl(path: string): string {
+  if (isDev) {
+    return path;
+  }
+  return path;
+}
+
+// ==================== 舊的 API 函數 ====================
+
+export async function fetchReadings(date: string): Promise<ReadingsResponse> {
+  const url = getBaseUrl(`/api/store-app/readings?date=${date}`);
+  const response = await authFetch(url);
+  return response.json();
+}
+
+export async function fetchMachinesStatus(): Promise<MachinesStatusResponse> {
+  const url = getBaseUrl('/api/store-app/machines/status');
+  const response = await authFetch(url);
+  return response.json();
+}
+
+export async function fetchBalance(): Promise<BalanceResponse> {
+  const url = getBaseUrl('/api/store-app/balance');
+  const response = await authFetch(url);
+  return response.json();
+}
+
+export async function fetchActivity(): Promise<ActivityResponse> {
+  const url = getBaseUrl('/api/store-app/activity');
+  const response = await authFetch(url);
+  return response.json();
+}
+
+export async function fetchPayments(startDate: string, endDate: string): Promise<PaymentsResponse> {
+  const url = getBaseUrl(`/api/store-app/payments?start_date=${startDate}&end_date=${endDate}`);
+  const response = await authFetch(url);
+  return response.json();
+}
+
+// ==================== SmartPay 機台 API ====================
+
+const SMARTPAY_API_KEY = import.meta.env.VITE_SMARTPAY_API_KEY || '';
+
+export async function fetchStoreReadings(storeId: number): Promise<StoreReadingsResponse> {
+  let response: Response;
+
+  if (isDev) {
+    response = await fetch(`/api/smartpay/external/store/${storeId}/readings`, {
+      headers: { 'X-API-Key': SMARTPAY_API_KEY },
+    });
+  } else {
+    response = await fetch(`/api/readings?storeId=${storeId}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
   }
 
   return response.json();
 }
 
-// 讀取用戶的銀行帳戶列表
+// ==================== 銀行帳戶 API ====================
+
 export async function fetchBankAccounts(): Promise<FavoriteBankAccountListResponse> {
-  return apiRequest<FavoriteBankAccountListResponse>('/favorite-bank-accounts');
+  const url = getBaseUrl('/api/favorite-bank-accounts');
+  const response = await authFetch(url);
+  return response.json();
 }
 
-// 新增銀行帳戶
 export async function createBankAccount(account: {
   bank_code: string;
   bank_name: string;
@@ -41,13 +112,14 @@ export async function createBankAccount(account: {
   account_holder_name: string;
   is_default?: boolean;
 }): Promise<FavoriteBankAccount> {
-  return apiRequest<FavoriteBankAccount>('/favorite-bank-accounts', {
+  const url = getBaseUrl('/api/favorite-bank-accounts');
+  const response = await authFetch(url, {
     method: 'POST',
     body: JSON.stringify(account),
   });
+  return response.json();
 }
 
-// 更新銀行帳戶
 export async function updateBankAccount(accountId: number, account: {
   bank_code?: string;
   bank_name?: string;
@@ -56,35 +128,41 @@ export async function updateBankAccount(accountId: number, account: {
   account_holder_name?: string;
   is_default?: boolean;
 }): Promise<FavoriteBankAccount> {
-  return apiRequest<FavoriteBankAccount>(`/favorite-bank-accounts/${accountId}`, {
+  const url = getBaseUrl(`/api/favorite-bank-accounts/${accountId}`);
+  const response = await authFetch(url, {
     method: 'PUT',
     body: JSON.stringify(account),
   });
+  return response.json();
 }
 
-// 刪除銀行帳戶
 export async function deleteBankAccount(accountId: number): Promise<{ message: string }> {
-  return apiRequest<{ message: string }>(`/favorite-bank-accounts/${accountId}`, {
+  const url = getBaseUrl(`/api/favorite-bank-accounts/${accountId}`);
+  const response = await authFetch(url, {
     method: 'DELETE',
   });
+  return response.json();
 }
 
-// 設定預設帳戶
 export async function setDefaultBankAccount(accountId: number): Promise<FavoriteBankAccount> {
-  return apiRequest<FavoriteBankAccount>(`/favorite-bank-accounts/${accountId}/set-default`, {
+  const url = getBaseUrl(`/api/favorite-bank-accounts/${accountId}/set-default`);
+  const response = await authFetch(url, {
     method: 'PATCH',
   });
+  return response.json();
 }
 
-// 申請提領
+// ==================== 提領 API ====================
+
 export async function applyWithdrawal(amount: number): Promise<WithdrawalApplyResponse> {
-  return apiRequest<WithdrawalApplyResponse>('/withdrawal/apply', {
+  const url = getBaseUrl('/api/withdrawal/apply');
+  const response = await authFetch(url, {
     method: 'POST',
     body: JSON.stringify({ amount }),
   });
+  return response.json();
 }
 
-// 查詢提領紀錄
 export async function fetchWithdrawalRequests(params?: {
   status?: string;
   page?: number;
@@ -96,29 +174,7 @@ export async function fetchWithdrawalRequests(params?: {
   if (params?.page_size) query.set('page_size', String(params.page_size));
   
   const queryString = query.toString();
-  return apiRequest<{ total_count: number; page: number; page_size: number; requests: any[] }>(
-    `/withdrawal/my-requests${queryString ? '?' + queryString : ''}`
-  );
-}
-
-// ==================== 以下的代碼是原本的 ====================
-
-export async function fetchStoreReadings(storeId: number): Promise<StoreReadingsResponse> {
-  let response: Response;
-
-  if (isDev) {
-    // 開發環境：透過 Vite proxy
-    response = await fetch(`/api/smartpay/external/store/${storeId}/readings`, {
-      headers: { 'X-API-Key': SMARTPAY_API_KEY },
-    });
-  } else {
-    // 生產環境：透過 Vercel Serverless Function
-    response = await fetch(`/api/readings?storeId=${storeId}`);
-  }
-
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
-  }
-
+  const url = getBaseUrl(`/api/withdrawal/my-requests${queryString ? '?' + queryString : ''}`);
+  const response = await authFetch(url);
   return response.json();
 }

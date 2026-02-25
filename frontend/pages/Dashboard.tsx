@@ -93,8 +93,9 @@ export const Dashboard: React.FC = () => {
           epay: summary ? summary.total_epay * PLAY_PRICE : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
         });
       }
-    } catch {
-      // silent
+    } catch (error) {
+      console.error('載入數據失敗:', error);
+      // API 失敗時，不清除既有數據
     } finally {
       setLoading(false);
     }
@@ -122,8 +123,9 @@ export const Dashboard: React.FC = () => {
           epay: s ? s.total_card_amount : 0,
         });
       }
-    } catch {
-      // silent
+    } catch (error) {
+      console.error('載入營收失敗:', error);
+      // API 失敗時，不清除既有數據
     } finally {
       setRevenueLoading(false);
     }

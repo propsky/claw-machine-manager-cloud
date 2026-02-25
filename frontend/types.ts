@@ -180,7 +180,8 @@ export interface StoreReadingsResponse {
   machines: ApiMachine[];
 }
 
-// 銀行帳戶相關類型
+// ===== 銀行帳戶相關類型 =====
+
 export interface FavoriteBankAccount {
   id: number;
   user_id: number;
@@ -200,7 +201,8 @@ export interface FavoriteBankAccountListResponse {
   accounts: FavoriteBankAccount[];
 }
 
-// 提領相關類型
+// ===== 提領相關類型 =====
+
 export interface WithdrawalApplyResponse {
   message: string;
   request_id: number;

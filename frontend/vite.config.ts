@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        allowedHosts: ['.ngrok-free.app', '.loca.lt'],
         proxy: {
           '/api/auth': {
             target: 'https://smartpay.propskynet.com',
@@ -25,6 +26,16 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: true,
             rewrite: (path) => path.replace(/^\/api\/smartpay/, '/api'),
+          },
+          '/api/favorite-bank-accounts': {
+            target: 'https://smartpay.propskynet.com',
+            changeOrigin: true,
+            secure: true,
+          },
+          '/api/withdrawal': {
+            target: 'https://smartpay.propskynet.com',
+            changeOrigin: true,
+            secure: true,
           },
         },
       },
