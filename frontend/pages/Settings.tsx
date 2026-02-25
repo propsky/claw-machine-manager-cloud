@@ -33,7 +33,9 @@ export const Settings: React.FC = () => {
       setBankAccounts(data.accounts);
     } catch (err: any) {
       console.error('載入銀行帳戶失敗:', err);
-      setError(err.message || '載入失敗');
+      // API 失敗時視為沒有銀行帳戶，不顯示錯誤訊息
+      // 使用者可以看到「尚未設定」的提示
+      setBankAccounts([]);
     } finally {
       setLoading(false);
     }
@@ -82,7 +84,7 @@ export const Settings: React.FC = () => {
       alert('銀行帳戶新增成功！');
     } catch (err: any) {
       console.error('新增銀行帳戶失敗:', err);
-      setError(err.message || '新增失敗');
+      setError('新增銀行帳戶失敗，請稍後再試');
     }
   };
 
@@ -97,7 +99,7 @@ export const Settings: React.FC = () => {
       alert('銀行帳戶已刪除');
     } catch (err: any) {
       console.error('刪除銀行帳戶失敗:', err);
-      setError(err.message || '刪除失敗');
+      setError('刪除銀行帳戶失敗，請稍後再試');
     }
   };
 
@@ -110,7 +112,7 @@ export const Settings: React.FC = () => {
       alert('已設為預設帳戶');
     } catch (err: any) {
       console.error('設定預設失敗:', err);
-      setError(err.message || '設定失敗');
+      setError('設定預設帳戶失敗，請稍後再試');
     }
   };
 
