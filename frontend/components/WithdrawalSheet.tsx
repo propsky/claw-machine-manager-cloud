@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FavoriteBankAccount } from '../types';
-import { fetchBankAccounts, applyWithdrawal } from '../services/api';
+import { fetchBankAccounts, applyWithdrawal, fetchUserProfile } from '../services/api';
 
 interface WithdrawalSheetProps {
   isOpen: boolean;
@@ -15,28 +15,45 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
   const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<FavoriteBankAccount | null>(null);
   const [success, setSuccess] = useState(false);
+  const [profileComplete, setProfileComplete] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
-      loadBankAccounts();
+      loadData();
       setError(null);
       setSuccess(false);
     }
   }, [isOpen]);
 
-  const loadBankAccounts = async () => {
+  const loadData = async () => {
     try {
+      // 檢查使用者資料是否完整
+      const userProfile = await fetchUserProfile();
+      const isComplete = !!(userProfile.real_name && userProfile.bank_account && userProfile.id_card_number);
+      setProfileComplete(isComplete);
+
+      if (!isComplete) {
+        setError('請先完成個人資料驗證才能提領');
+        return;
+      }
+
+      // 載入銀行帳戶
       const data = await fetchBankAccounts();
-      // 找預設帳戶，沒有的話用第一個
       const defaultAccount = data.accounts.find(a => a.is_default) || data.accounts[0] || null;
       setBankAccounts(data.accounts);
       setSelectedAccount(defaultAccount);
     } catch (err) {
-      console.error('載入銀行帳戶失敗:', err);
+      console.error('載入資料失敗:', err);
+      setError('載入資料失敗，請稍後再試');
     }
   };
 
   const handleSubmit = async () => {
+    if (!profileComplete) {
+      setError('請先完成個人資料驗證才能提領');
+      return;
+    }
+
     if (!selectedAccount) {
       setError('請先設定銀行帳戶');
       return;

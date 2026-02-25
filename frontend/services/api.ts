@@ -42,6 +42,39 @@ function getBaseUrl(path: string): string {
   return path;
 }
 
+// 使用者資料
+export interface UserProfile {
+  id: number;
+  username: string;
+  nickname: string | null;
+  real_name: string | null;
+  email: string | null;
+  phone: string;
+  bank_account: string | null;
+  id_card_number: string | null;
+  is_verified: boolean;
+}
+
+export async function fetchUserProfile(): Promise<UserProfile> {
+  const url = getBaseUrl('/api/users/me');
+  const response = await authFetch(url);
+  return response.json();
+}
+
+export async function updateUserProfile(data: {
+  real_name?: string;
+  bank_account?: string;
+  id_card_number?: string;
+  nickname?: string;
+}): Promise<UserProfile> {
+  const url = getBaseUrl('/api/users/me');
+  const response = await authFetch(url, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return response.json();
+}
+
 // ==================== 舊的 API 函數 ====================
 
 export async function fetchReadings(date: string): Promise<ReadingsResponse> {
