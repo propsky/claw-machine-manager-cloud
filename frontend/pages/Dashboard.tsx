@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MachineStatus, ReadingsResponse, ReadingItem, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
 
@@ -53,6 +53,14 @@ const FILTER_LABELS: { key: DateFilter; label: string }[] = [
 
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
+  // 用 ref 追蹤最新的 selectedFilter，避免 setInterval 閉包問題
+  const selectedFilterRef = useRef<DateFilter>(selectedFilter);
+
+  // 同步 ref 與 state
+  useEffect(() => {
+    selectedFilterRef.current = selectedFilter;
+  }, [selectedFilter]);
+
   // 即時資料（今日 readings，用於場地健康）
   const [realtimeReadings, setRealtimeReadings] = useState<ReadingsResponse | null>(null);
   // 篩選用的營收資料
@@ -62,44 +70,55 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [revenueLoading, setRevenueLoading] = useState(false);
 
-  // 載入即時資料（一次性 + 定時刷新）
-  useEffect(() => {
-    loadRealtimeData();
-    const interval = setInterval(loadRealtimeData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // 篩選變更時載入對應營收資料
-  useEffect(() => {
-    loadRevenueData(selectedFilter);
-  }, [selectedFilter]);
-
-  async function loadRealtimeData() {
+  // 載入即時資料（場地健康、餘額、帳務）— 不動營收數據
+  const loadRealtimeData = useCallback(async () => {
     try {
       const [readings, balance, activity] = await Promise.all([
         fetchReadings(formatDate(new Date())),
         fetchBalance(),
         fetchActivity(),
       ]);
-      setRealtimeReadings(readings);
-      setBalanceData(balance);
-      setActivityData(activity);
 
-      // 如果當前篩選是今日，同步更新營收資料
-      if (selectedFilter === 'today') {
+      // 只有在有效數據時才更新
+      if (readings && readings.items) {
+        setRealtimeReadings(readings);
+      }
+      if (balance) {
+        setBalanceData(balance);
+      }
+      if (activity) {
+        setActivityData(activity);
+      }
+
+      // ★ 用 ref 讀取最新的 filter，避免閉包問題
+      // 只有在「今日」篩選時，才用即時 readings 同步營收
+      if (selectedFilterRef.current === 'today') {
         const summary = readings.summary;
         setRevenueData({
           coin: summary ? summary.total_coin * PLAY_PRICE : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
           epay: summary ? summary.total_epay * PLAY_PRICE : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
         });
       }
+      // ★ 其他篩選（昨日、本週、本月）不覆蓋營收，保留 loadRevenueData 的結果
     } catch (error) {
       console.error('載入數據失敗:', error);
       // API 失敗時，不清除既有數據
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  // 載入即時資料（一次性 + 定時刷新）
+  useEffect(() => {
+    loadRealtimeData();
+    const interval = setInterval(loadRealtimeData, 30000);
+    return () => clearInterval(interval);
+  }, [loadRealtimeData]);
+
+  // 篩選變更時載入對應營收資料
+  useEffect(() => {
+    loadRevenueData(selectedFilter);
+  }, [selectedFilter]);
 
   async function loadRevenueData(filter: DateFilter) {
     const range = getDateRange(filter);
