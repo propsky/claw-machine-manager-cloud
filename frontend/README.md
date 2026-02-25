@@ -9,6 +9,8 @@
 - **財務中心** — 可提領餘額、月結算（刷卡金額/日租/手續費/實際入帳）
 - **帳務紀錄** — 每日結算入帳、提領紀錄
 - **登入認證** — 帳密登入 + JWT Token，不同帳號看到不同場地資料
+- **銀行帳戶管理** — 新增/刪除/設定預設銀行帳戶
+- **提領功能** — 申請提領、查詢提領紀錄
 
 ## Tech Stack
 
@@ -55,11 +57,11 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 ## Next Steps
 
 ### Phase 1: 提領功能串接真實 API
-- [ ] 串接 `POST /api/withdrawal/apply` 申請提領
-- [ ] 串接 `GET /api/withdrawal/my-requests` 查詢提領狀態
+- [x] 串接 `POST /api/withdrawal/apply` 申請提領
+- [x] 串接 `GET /api/withdrawal/my-requests` 查詢提領狀態
 - [ ] 新增 CF Function proxy (`functions/api/withdrawal/`)
-- [ ] WithdrawalSheet 元件接上真實 API
-- [ ] 提領成功/失敗回饋 UI
+- [x] WithdrawalSheet 元件接上真實 API
+- [x] 提領成功/失敗回饋 UI
 
 ### Phase 2: 營收數據彙總卡片
 - [ ] Dashboard「營收報表」卡片改為真實數據（目前標示開發中）
@@ -67,8 +69,8 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 - [ ] 使用 payments API summary 計算彙總數據
 
 ### Phase 3: 個人資料 + 銀行帳戶管理
-- [ ] Settings 頁面串接 `GET /api/users/me` 顯示個人資料
-- [ ] 串接 `GET/POST/PUT/DELETE /api/favorite-bank-accounts` 管理收款帳戶
+- [x] Settings 頁面串接 `GET /users/me` 顯示個人資料
+- [x] 串接 `GET/POST/PUT/DELETE /api/favorite-bank-accounts` 管理收款帳戶
 - [ ] 新增對應 CF Function proxy
 - [ ] 提領時可選擇不同銀行帳戶
 
@@ -77,3 +79,21 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 - [ ] 支援「加到手機桌面」
 - [ ] 離線 cache 基本頁面框架
 - [ ] App icon 設計
+
+---
+
+## 版本資訊
+
+### v2.5.3 (2026-02-25)
+**Bug 修復**
+- 修復 API 失敗時顯示錯誤訊息，改為顯示「尚未設定銀行帳戶」
+- 修復 Dashboard 切換篩選後，自動刷新會覆蓋營收數據（React 閉包問題）
+- 修復機台離線判斷從 1 小時改為 90 分鐘（API 約 80 分鐘更新一次）
+
+**新功能**
+- 銀行帳戶管理（新增/刪除/設定預設）
+- 提領功能（申請提領、查詢紀錄）
+
+### v2.4.0 - v2.5.0
+- 初始功能發布
+- 營運總覽、機台監控、財務中心、帳務紀錄
