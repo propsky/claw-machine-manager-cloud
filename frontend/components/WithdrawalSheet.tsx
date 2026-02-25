@@ -9,6 +9,9 @@ interface WithdrawalSheetProps {
   onSuccess?: () => void;
 }
 
+// 手續費：台新、國泰、玉山 = $0，其他 = $15
+const NO_FEE_BANKS = ['台新銀行', '國泰世華', '玉山銀行'];
+
 export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClose, amount, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,14 +19,18 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
   const [selectedAccount, setSelectedAccount] = useState<FavoriteBankAccount | null>(null);
   const [success, setSuccess] = useState(false);
   const [profileComplete, setProfileComplete] = useState(true);
+  
+  // 提領金額
+  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
       loadData();
       setError(null);
       setSuccess(false);
+      setWithdrawAmount(amount.toString()); // 預設為最大值
     }
-  }, [isOpen]);
+  }, [isOpen, amount]);
 
   const loadData = async () => {
     try {
@@ -48,14 +55,29 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
     }
   };
 
-  const handleSubmit = async () => {
-    if (!profileComplete) {
-      setError('請先完成個人資料驗證才能提領');
-      return;
-    }
+  // 計算手續費
+  const getFee = () => {
+    if (!selectedAccount) return 15;
+    const isNoFee = NO_FEE_BANKS.some(bank => selectedAccount.bank_name.includes(bank));
+    return isNoFee ? 0 : 15;
+  };
 
-    if (!selectedAccount) {
-      setError('請先設定銀行帳戶');
+  const fee = getFee();
+  const inputAmount = parseFloat(withdrawAmount) || 0;
+  const actualAmount = Math.max(0, inputAmount - fee);
+
+  // 檢查是否可提領
+  const canSubmit = inputAmount > 0 && inputAmount <= amount && selectedAccount && inputAmount >= fee;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) {
+      if (inputAmount > amount) {
+        setError('提領金額不可超過可提領餘額');
+      } else if (inputAmount < fee && fee > 0) {
+        setError(`手續費 $${fee}，請提領 $${fee} 以上`);
+      } else {
+        setError('請選擇銀行帳戶');
+      }
       return;
     }
 
@@ -63,7 +85,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
     setError(null);
 
     try {
-      await applyWithdrawal(amount);
+      await applyWithdrawal(inputAmount);
       setSuccess(true);
       onSuccess?.();
       // 2 秒後關閉
@@ -100,13 +122,13 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
         </div>
 
         {/* Header */}
-        <div className="px-6 pt-2 pb-6 z-10">
+        <div className="px-6 pt-2 pb-4 z-10">
           <h1 className="text-white text-xl font-bold text-center">確認提領申請</h1>
-          <p className="text-white/50 text-sm text-center mt-1">請核對您的提領資訊</p>
+          <p className="text-white/50 text-sm text-center mt-1">可提領餘額：${amount.toLocaleString()}</p>
         </div>
 
         {/* Content Area */}
-        <div className="px-6 space-y-6 z-10">
+        <div className="px-6 space-y-4 z-10">
           {/* Success Message */}
           {success ? (
             <div className="flex flex-col items-center py-8">
@@ -118,90 +140,99 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
             </div>
           ) : (
             <>
-              {/* Amount Input Display */}
-              <div className="flex flex-col gap-2">
-                <p className="text-white/70 text-sm font-medium">提領金額</p>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
-                  <input 
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-10 pr-4 text-white text-2xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" 
-                    readOnly 
-                    type="text" 
-                    value={amount.toLocaleString()}
-                  />
-                </div>
-              </div>
-
-              {/* Bank Account */}
-              <div className="flex flex-col gap-2">
-                <p className="text-white/70 text-sm font-medium">提領帳戶</p>
-                {selectedAccount ? (
-                  <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
-                    <div className="text-primary bg-primary/10 flex items-center justify-center rounded-lg shrink-0 size-12">
-                      <span className="material-symbols-outlined">account_balance</span>
-                    </div>
-                    <div className="flex flex-col flex-1">
-                      <p className="text-white text-base font-semibold">{selectedAccount.bank_name}</p>
-                      <p className="text-white/50 text-xs">帳號：{selectedAccount.account_number}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl text-red-300 text-sm">
-                    請先在設定頁面新增銀行帳戶
-                  </div>
-                )}
-              </div>
-
-              {/* Processing Time */}
-              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
-                <div className="text-primary bg-primary/10 flex items-center justify-center rounded-lg shrink-0 size-12">
-                  <span className="material-symbols-outlined">schedule</span>
-                </div>
-                <div className="flex flex-col flex-1">
-                  <p className="text-white text-base font-semibold">3 個工作天</p>
-                  <p className="text-white/50 text-xs uppercase tracking-wider">預計撥款時間</p>
-                </div>
-              </div>
-
-              {/* Error Message */}
+              {/* 錯誤訊息 */}
               {error && (
                 <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm">
                   {error}
                 </div>
               )}
 
-              {/* Warnings/Notes */}
-              <p className="text-white/40 text-[11px] leading-relaxed px-1">
-                 點擊「確認提領」即代表您同意本平台的服務條款。手續費 $15 將從提領金額中扣除。
-              </p>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-3 pt-4">
-                <button 
-                  onClick={handleSubmit}
-                  disabled={loading || !selectedAccount}
-                  className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-background-dark font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-95"
-                >
-                  {loading ? (
-                    <>
-                      <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                      處理中...
-                    </>
-                  ) : (
-                    <>
-                      確認提領
-                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                    </>
-                  )}
-                </button>
-                <button 
-                  onClick={onClose}
-                  disabled={loading}
-                  className="w-full bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white font-medium py-4 rounded-xl transition-colors active:scale-95"
-                >
-                  取消
-                </button>
+              {/* 輸入提領金額 */}
+              <div className="flex flex-col gap-2">
+                <p className="text-white/70 text-sm font-medium">輸入提領金額</p>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
+                  <input 
+                    type="number"
+                    value={withdrawAmount}
+                    onChange={e => setWithdrawAmount(e.target.value)}
+                    max={amount}
+                    min={0}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-10 pr-4 text-white text-2xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                    placeholder="0"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 text-sm">
+                    最高 ${amount.toLocaleString()}
+                  </span>
+                </div>
               </div>
+
+              {/* 選擇銀行 */}
+              <div className="flex flex-col gap-2">
+                <p className="text-white/70 text-sm font-medium">選擇銀行</p>
+                <select
+                  value={selectedAccount?.id || ''}
+                  onChange={e => {
+                    const account = bankAccounts.find(a => a.id === parseInt(e.target.value));
+                    setSelectedAccount(account || null);
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-4 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none appearance-none"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 12px center',
+                    backgroundSize: '24px'
+                  }}
+                >
+                  {bankAccounts.length === 0 ? (
+                    <option value="">請先新增銀行帳戶</option>
+                  ) : (
+                    bankAccounts.map(account => (
+                      <option key={account.id} value={account.id} className="bg-zinc-900">
+                        {account.bank_name} ({account.account_number})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* 手續費與實際入帳 */}
+              <div className="bg-white/5 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-white/70">
+                  <span>手續費</span>
+                  <span className={fee === 0 ? 'text-green-400' : ''}>${fee}</span>
+                </div>
+                <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-white/10">
+                  <span>實際入帳</span>
+                  <span className="text-primary">${actualAmount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* 確認按鈕 */}
+              <button 
+                onClick={handleSubmit}
+                disabled={loading || !canSubmit}
+                className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-background-dark font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-95"
+              >
+                {loading ? (
+                  <>
+                    <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                    處理中...
+                  </>
+                ) : (
+                  <>
+                    確認提領 {actualAmount > 0 ? `$${actualAmount.toLocaleString()}` : ''} 元
+                  </>
+                )}
+              </button>
+              
+              <button 
+                onClick={onClose}
+                disabled={loading}
+                className="w-full bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white font-medium py-4 rounded-xl transition-colors active:scale-95"
+              >
+                取消
+              </button>
             </>
           )}
         </div>
