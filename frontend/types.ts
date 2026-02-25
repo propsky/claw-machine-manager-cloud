@@ -52,3 +52,30 @@ export interface StoreReadingsResponse {
   query_time: string;
   machines: ApiMachine[];
 }
+
+// 銀行帳戶相關類型
+export interface FavoriteBankAccount {
+  id: number;
+  user_id: number;
+  bank_code: string;
+  bank_name: string;
+  branch_name: string | null;
+  account_number: string;
+  account_holder_name: string;
+  memo: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FavoriteBankAccountListResponse {
+  total_count: number;
+  accounts: FavoriteBankAccount[];
+}
+
+// 提領相關類型
+export interface WithdrawalApplyResponse {
+  message: string;
+  request_id: number;
+  request_no: string;
+}
