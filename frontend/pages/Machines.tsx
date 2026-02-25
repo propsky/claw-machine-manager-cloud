@@ -12,8 +12,8 @@ function getTimeDiffMinutes(lastReadingTime: string): number {
 
 function getMachineStatus(machine: ReadingItem): MachineStatus {
   const diffMinutes = getTimeDiffMinutes(machine.last_reading_time);
-  // API 約 80 分鐘更新一次，設定 2 小時無回應視為離線
-  if (diffMinutes > 120) {
+  // API 約 80 分鐘更新一次，設定 90 分鐘無回應視為離線
+  if (diffMinutes > 90) {
     return MachineStatus.OFFLINE;
   }
   return MachineStatus.ONLINE;

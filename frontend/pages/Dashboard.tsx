@@ -10,8 +10,8 @@ function getMachineStatus(machine: ReadingItem): MachineStatus {
   const lastTime = new Date(machine.last_reading_time);
   const now = new Date();
   const diffMinutes = Math.floor((now.getTime() - lastTime.getTime()) / (1000 * 60));
-  // API 約 80 分鐘更新一次，設定 2 小時無回應視為離線
-  return diffMinutes > 120 ? MachineStatus.OFFLINE : MachineStatus.ONLINE;
+  // API 約 80 分鐘更新一次，設定 90 分鐘無回應視為離線
+  return diffMinutes > 90 ? MachineStatus.OFFLINE : MachineStatus.ONLINE;
 }
 
 function formatDate(d: Date): string {
