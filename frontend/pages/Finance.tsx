@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { WithdrawalSheet } from '../components/WithdrawalSheet';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { useNavigate } from 'react-router-dom';
-import { fetchBalance, fetchPayments, fetchActivity } from '../services/api';
+import { fetchBalance, fetchPayments, fetchActivity, fetchWithdrawalRequests, WithdrawalRequest } from '../services/api';
 import type { BalanceResponse, PaymentsResponse, ActivityResponse } from '../types';
 
 type FilterType = 'current' | 'prev1' | 'prev2' | 'custom';
@@ -36,6 +36,7 @@ export const Finance: React.FC = () => {
   const [balanceData, setBalanceData] = useState<BalanceResponse | null>(null);
   const [paymentsData, setPaymentsData] = useState<PaymentsResponse | null>(null);
   const [activityData, setActivityData] = useState<ActivityResponse | null>(null);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -88,12 +89,14 @@ export const Finance: React.FC = () => {
   useEffect(() => {
     async function loadInitial() {
       try {
-        const [balance, activity] = await Promise.all([
+        const [balance, activity, withdrawals] = await Promise.all([
           fetchBalance(),
           fetchActivity(),
+          fetchWithdrawalRequests({ page_size: 20 }),
         ]);
         setBalanceData(balance);
         setActivityData(activity);
+        setWithdrawalRequests(withdrawals.requests);
       } catch {
         // silent
       }
@@ -130,17 +133,44 @@ export const Finance: React.FC = () => {
   }, [paymentsData]);
 
   const availableBalance = balanceData?.balance?.available_amount ?? 0;
-  const recentActivity = activityData?.items?.slice(0, 5) || [];
+  // 合併每日結算和提領紀錄
+  const combinedRecords = useMemo(() => {
+    const incomeRecords = activityData?.items?.map(item => ({
+      type: 'income' as const,
+      date: item.date,
+      amount: item.amount,
+      description: item.description,
+      status: '',
+    })) || [];
+
+    const withdrawalRecords = withdrawalRequests.map(req => ({
+      type: 'withdrawal' as const,
+      date: req.created_at.split('T')[0],
+      amount: parseFloat(req.amount),
+      description: '提領申請',
+      status: req.status === 'COMPLETED' ? '已撥款' : '已申請',
+      requestNo: req.request_no,
+    }));
+
+    // 合併並按日期排序（新的在前）
+    return [...incomeRecords, ...withdrawalRecords]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
+  }, [activityData, withdrawalRequests]);
+
+  const recentActivity = combinedRecords;
 
   // 重新載入餘額和帳務紀錄
   const reloadData = async () => {
     try {
-      const [balance, activity] = await Promise.all([
+      const [balance, activity, withdrawals] = await Promise.all([
         fetchBalance(),
         fetchActivity(),
+        fetchWithdrawalRequests({ page_size: 20 }),
       ]);
       setBalanceData(balance);
       setActivityData(activity);
+      setWithdrawalRequests(withdrawals.requests);
     } catch {
       // silent
     }
@@ -287,7 +317,7 @@ export const Finance: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">{item.description}</p>
-                      <p className="text-[10px] text-white/40">{item.date} {item.type === 'withdrawal' && '・已申請'}</p>
+                      <p className="text-[10px] text-white/40">{item.date} {item.type === 'withdrawal' && item.status && `・${item.status}`}</p>
                     </div>
                   </div>
                   <span className={`text-sm font-bold ${

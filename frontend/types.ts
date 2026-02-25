@@ -208,3 +208,23 @@ export interface WithdrawalApplyResponse {
   request_id: number;
   request_no: string;
 }
+
+export interface WithdrawalRequest {
+  id: number;
+  request_no: string;
+  amount: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  reviewer_id: number | null;
+  review_time: string | null;
+  review_note: string | null;
+  processed_time: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WithdrawalRequestList {
+  total_count: number;
+  page: number;
+  page_size: number;
+  requests: WithdrawalRequest[];
+}
