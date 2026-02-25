@@ -63,11 +63,14 @@ export async function fetchUserProfile(): Promise<UserProfile> {
 
 export async function updateUserProfile(data: {
   real_name?: string;
+  phone?: string;
   bank_account?: string;
   id_card_number?: string;
   nickname?: string;
 }): Promise<UserProfile> {
-  const url = getBaseUrl('/api/users/me');
+  // 先取得 user_id
+  const profile = await fetchUserProfile();
+  const url = getBaseUrl(`/api/users/${profile.id}`);
   const response = await authFetch(url, {
     method: 'PUT',
     body: JSON.stringify(data),

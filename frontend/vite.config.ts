@@ -32,6 +32,11 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: true,
           },
+          '/api/users': {
+            target: 'https://smartpay.propskynet.com',
+            changeOrigin: true,
+            secure: true,
+          },
           '/api/withdrawal': {
             target: 'https://smartpay.propskynet.com',
             changeOrigin: true,
