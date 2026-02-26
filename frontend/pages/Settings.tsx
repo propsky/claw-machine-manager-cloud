@@ -1,14 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { FavoriteBankAccount } from '../types';
-import { fetchBankAccounts, createBankAccount, deleteBankAccount, setDefaultBankAccount } from '../services/api';
+import { fetchBankAccounts, createBankAccount, deleteBankAccount, setDefaultBankAccount, fetchUserProfile, updateUserProfile, UserProfile } from '../services/api';
 import { BANK_CODES, getBankName } from '../constants/bankCodes';
+import { Toast, ToastType } from '../components/Toast';
 
 export const Settings: React.FC = () => {
   const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FavoriteBankAccount | null>(null);
+  
+  // 個人資料狀態
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    real_name: '',
+    phone: '',
+    id_card_number: '',
+  });
   
   // 表單狀態
   const [formData, setFormData] = useState({
@@ -38,6 +50,42 @@ export const Settings: React.FC = () => {
       setBankAccounts([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 載入個人資料
+  const loadProfile = async () => {
+    try {
+      const data = await fetchUserProfile();
+      setProfileData(data);
+      setProfileForm({
+        real_name: data.real_name || '',
+        phone: data.phone || '',
+        id_card_number: data.id_card_number || '',
+      });
+    } catch (err) {
+      console.error('載入個人資料失敗:', err);
+    }
+  };
+
+  // 更新個人資料
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    try {
+      await updateUserProfile({
+        real_name: profileForm.real_name,
+        phone: profileForm.phone,
+        id_card_number: profileForm.id_card_number,
+      });
+      await loadProfile();
+      setShowProfileEdit(false);
+      setToast({ message: '個人資料已更新', type: 'success' });
+    } catch (err: any) {
+      console.error('更新個人資料失敗:', err);
+      setToast({ message: err.message || '更新失敗，請稍後再試', type: 'error' });
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -81,7 +129,7 @@ export const Settings: React.FC = () => {
       
       // 重新載入列表
       await loadBankAccounts();
-      alert('銀行帳戶新增成功！');
+      setToast({ message: '銀行帳戶新增成功！', type: 'success' });
     } catch (err: any) {
       console.error('新增銀行帳戶失敗:', err);
       setError('新增銀行帳戶失敗，請稍後再試');
@@ -96,7 +144,7 @@ export const Settings: React.FC = () => {
       setError(null);
       await deleteBankAccount(id);
       await loadBankAccounts();
-      alert('銀行帳戶已刪除');
+      setToast({ message: '銀行帳戶已刪除', type: 'success' });
     } catch (err: any) {
       console.error('刪除銀行帳戶失敗:', err);
       setError('刪除銀行帳戶失敗，請稍後再試');
@@ -109,7 +157,7 @@ export const Settings: React.FC = () => {
       setError(null);
       await setDefaultBankAccount(id);
       await loadBankAccounts();
-      alert('已設為預設帳戶');
+      setToast({ message: '已設為預設帳戶', type: 'success' });
     } catch (err: any) {
       console.error('設定預設失敗:', err);
       setError('設定預設帳戶失敗，請稍後再試');
@@ -142,7 +190,10 @@ export const Settings: React.FC = () => {
         <section className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">帳戶</h3>
           <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
-            <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5">
+            <button 
+              onClick={() => { loadProfile(); setShowProfileEdit(true); }}
+              className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5"
+            >
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-primary/20 flex items-center justify-center">
                   <span className="material-symbols-outlined text-primary">person</span>
@@ -381,7 +432,7 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold">版本資訊</p>
-                  <p className="text-xs text-white/40">Version 2.5.3 (Build 20260225)</p>
+                  <p className="text-xs text-white/40">Version 2.7.0 (Build 20260226)</p>
                 </div>
               </div>
               <span className="text-xs text-white/20 px-2 py-1 bg-white/5 rounded-md font-mono">最新版本</span>
@@ -398,6 +449,83 @@ export const Settings: React.FC = () => {
           <p className="text-center text-[10px] text-white/20 mt-6">Claw Machine Manager Cloud © 2023</p>
         </section>
       </main>
+
+      {/* Toast 提示 */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* 個人資料編輯 Modal */}
+      {showProfileEdit && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowProfileEdit(false)}></div>
+          <div className="relative w-full max-w-[430px] bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col pb-10 animate-slide-up">
+            <div className="flex h-1.5 w-full items-center justify-center py-4">
+              <div className="h-1.5 w-12 rounded-full bg-white/20"></div>
+            </div>
+            <div className="px-6 pb-4">
+              <h1 className="text-white text-xl font-bold text-center">個人資料</h1>
+              <p className="text-white/50 text-sm text-center mt-1">填寫完整以便提領</p>
+            </div>
+            <form onSubmit={handleProfileSubmit} className="px-6 space-y-4">
+              <div>
+                <label className="text-white/70 text-sm font-medium block mb-2">真實姓名</label>
+                <input
+                  type="text"
+                  value={profileForm.real_name}
+                  onChange={e => setProfileForm({...profileForm, real_name: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  placeholder="請輸入真實姓名"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-white/70 text-sm font-medium block mb-2">聯絡電話</label>
+                <input
+                  type="tel"
+                  value={profileForm.phone}
+                  onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  placeholder="請輸入聯絡電話"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-white/70 text-sm font-medium block mb-2">身份證字號</label>
+                <input
+                  type="text"
+                  value={profileForm.id_card_number}
+                  onChange={e => setProfileForm({...profileForm, id_card_number: e.target.value.toUpperCase()})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  placeholder="請輸入身份證字號"
+                  maxLength={10}
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowProfileEdit(false)}
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white font-medium py-4 rounded-xl transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={profileLoading}
+                  className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-background-dark font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  {profileLoading ? '儲存中...' : '儲存'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -133,12 +133,12 @@ export const TransactionHistory: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">{item.description}</p>
-                      <p className="text-[10px] text-white/40">{item.date}</p>
+                      <p className="text-[10px] text-white/40">{item.date} {!isIncome && '・已申請'}</p>
                     </div>
                   </div>
                   <span
                     className={`text-sm font-bold ${
-                      isIncome ? 'text-green-500' : 'text-white'
+                      isIncome ? 'text-green-500' : 'text-red-500'
                     }`}
                   >
                     {isIncome ? '+' : '-'}${item.amount.toLocaleString()}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { WithdrawalSheet } from '../components/WithdrawalSheet';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { useNavigate } from 'react-router-dom';
-import { fetchBalance, fetchPayments, fetchActivity } from '../services/api';
+import { fetchBalance, fetchPayments, fetchActivity, fetchWithdrawalRequests, WithdrawalRequest } from '../services/api';
 import type { BalanceResponse, PaymentsResponse, ActivityResponse } from '../types';
 
 type FilterType = 'current' | 'prev1' | 'prev2' | 'custom';
@@ -36,6 +36,7 @@ export const Finance: React.FC = () => {
   const [balanceData, setBalanceData] = useState<BalanceResponse | null>(null);
   const [paymentsData, setPaymentsData] = useState<PaymentsResponse | null>(null);
   const [activityData, setActivityData] = useState<ActivityResponse | null>(null);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -88,12 +89,14 @@ export const Finance: React.FC = () => {
   useEffect(() => {
     async function loadInitial() {
       try {
-        const [balance, activity] = await Promise.all([
+        const [balance, activity, withdrawals] = await Promise.all([
           fetchBalance(),
           fetchActivity(),
+          fetchWithdrawalRequests({ page_size: 20 }),
         ]);
         setBalanceData(balance);
         setActivityData(activity);
+        setWithdrawalRequests(withdrawals.requests);
       } catch {
         // silent
       }
@@ -130,7 +133,37 @@ export const Finance: React.FC = () => {
   }, [paymentsData]);
 
   const availableBalance = balanceData?.balance?.available_amount ?? 0;
-  const recentActivity = activityData?.items?.slice(0, 5) || [];
+  // 直接使用 activity API 作為主要資料來源
+  const combinedRecords = useMemo(() => {
+    return activityData?.items?.map(item => ({
+      type: item.type as 'income' | 'withdrawal',
+      date: item.date,
+      amount: Math.abs(item.amount), // 取絕對值
+      isNegative: item.amount < 0, // 判斷是否為負數
+      description: item.description,
+      status: item.type === 'withdrawal' && item.details?.status ? 
+        (item.details.status === 'COMPLETED' ? '已撥款' : '已申請') : '',
+      details: item.details,
+    })) || [];
+  }, [activityData]);
+
+  const recentActivity = combinedRecords;
+
+  // 重新載入餘額和帳務紀錄
+  const reloadData = async () => {
+    try {
+      const [balance, activity, withdrawals] = await Promise.all([
+        fetchBalance(),
+        fetchActivity(),
+        fetchWithdrawalRequests({ page_size: 20 }),
+      ]);
+      setBalanceData(balance);
+      setActivityData(activity);
+      setWithdrawalRequests(withdrawals.requests);
+    } catch {
+      // silent
+    }
+  };
 
   const handleCustomConfirm = (start: string, end: string) => {
     setCustomRange({ start, end });
@@ -273,13 +306,13 @@ export const Finance: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">{item.description}</p>
-                      <p className="text-[10px] text-white/40">{item.date}</p>
+                      <p className="text-[10px] text-white/40">{item.date} {item.status && `・${item.status}`}</p>
                     </div>
                   </div>
                   <span className={`text-sm font-bold ${
-                    item.type === 'income' ? 'text-green-500' : 'text-white'
+                    item.type === 'income' || !item.isNegative ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    {item.type === 'income' ? '+' : '-'}${item.amount.toLocaleString()}
+                    {item.type === 'income' || !item.isNegative ? '+' : '-'}${item.amount.toLocaleString()}
                   </span>
                 </div>
               ))}
@@ -288,7 +321,7 @@ export const Finance: React.FC = () => {
         </section>
       </main>
 
-      <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={availableBalance} />
+      <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={availableBalance} onSuccess={reloadData} />
       <DateRangeSheet
         isOpen={isDateSheetOpen}
         onClose={() => setIsDateSheetOpen(false)}

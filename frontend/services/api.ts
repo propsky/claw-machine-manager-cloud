@@ -42,6 +42,42 @@ function getBaseUrl(path: string): string {
   return path;
 }
 
+// 使用者資料
+export interface UserProfile {
+  id: number;
+  username: string;
+  nickname: string | null;
+  real_name: string | null;
+  email: string | null;
+  phone: string;
+  bank_account: string | null;
+  id_card_number: string | null;
+  is_verified: boolean;
+}
+
+export async function fetchUserProfile(): Promise<UserProfile> {
+  const url = getBaseUrl('/api/users/me');
+  const response = await authFetch(url);
+  return response.json();
+}
+
+export async function updateUserProfile(data: {
+  real_name?: string;
+  phone?: string;
+  bank_account?: string;
+  id_card_number?: string;
+  nickname?: string;
+}): Promise<UserProfile> {
+  // 先取得 user_id
+  const profile = await fetchUserProfile();
+  const url = getBaseUrl(`/api/users/${profile.id}`);
+  const response = await authFetch(url, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return response.json();
+}
+
 // ==================== 舊的 API 函數 ====================
 
 export async function fetchReadings(date: string): Promise<ReadingsResponse> {
@@ -154,11 +190,26 @@ export async function setDefaultBankAccount(accountId: number): Promise<Favorite
 
 // ==================== 提領 API ====================
 
-export async function applyWithdrawal(amount: number): Promise<WithdrawalApplyResponse> {
+export async function applyWithdrawal(amount: number, bankAccount?: {
+  bank_code: string;
+  bank_name: string;
+  account_number: string;
+  account_holder_name: string;
+}): Promise<WithdrawalApplyResponse> {
   const url = getBaseUrl('/api/withdrawal/apply');
+  const body: any = { amount };
+  
+  // 如果有銀行帳戶資料，一併傳送
+  if (bankAccount) {
+    body.bank_code = bankAccount.bank_code;
+    body.bank_name = bankAccount.bank_name;
+    body.account_number = bankAccount.account_number;
+    body.account_holder_name = bankAccount.account_holder_name;
+  }
+  
   const response = await authFetch(url, {
     method: 'POST',
-    body: JSON.stringify({ amount }),
+    body: JSON.stringify(body),
   });
   return response.json();
 }

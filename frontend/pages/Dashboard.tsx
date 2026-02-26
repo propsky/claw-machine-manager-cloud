@@ -10,7 +10,8 @@ function getMachineStatus(machine: ReadingItem): MachineStatus {
   const lastTime = new Date(machine.last_reading_time);
   const now = new Date();
   const diffMinutes = Math.floor((now.getTime() - lastTime.getTime()) / (1000 * 60));
-  return diffMinutes > 60 ? MachineStatus.OFFLINE : MachineStatus.ONLINE;
+  // API 約 80 分鐘更新一次，設定 90 分鐘無回應視為離線
+  return diffMinutes > 90 ? MachineStatus.OFFLINE : MachineStatus.ONLINE;
 }
 
 function formatDate(d: Date): string {
@@ -44,6 +45,34 @@ function getDateRange(filter: DateFilter): { start: string; end: string; isSingl
   }
 }
 
+function getRevenueDateRange(filter: RevenueFilter): { start: string; end: string } {
+  const now = new Date();
+  const today = formatDate(now);
+
+  switch (filter) {
+    case 'day1': {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return { start: formatDate(yesterday), end: today };
+    }
+    case 'day3': {
+      const threeDaysAgo = new Date(now);
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      return { start: formatDate(threeDaysAgo), end: today };
+    }
+    case 'day7': {
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return { start: formatDate(sevenDaysAgo), end: today };
+    }
+    case 'day30': {
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return { start: formatDate(thirtyDaysAgo), end: today };
+    }
+  }
+}
+
 const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'today', label: '今日' },
   { key: 'yesterday', label: '昨日' },
@@ -51,10 +80,22 @@ const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'month', label: '本月' },
 ];
 
+// 營收報表篩選
+type RevenueFilter = 'day1' | 'day3' | 'day7' | 'day30';
+const REVENUE_FILTER_LABELS: { key: RevenueFilter; label: string }[] = [
+  { key: 'day1', label: '24小時內' },
+  { key: 'day3', label: '3天內' },
+  { key: 'day7', label: '7天內' },
+  { key: 'day30', label: '30天內' },
+];
+
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
   // 用 ref 追蹤最新的 selectedFilter，避免 setInterval 閉包問題
   const selectedFilterRef = useRef<DateFilter>(selectedFilter);
+  // 營收報表 Modal
+  const [showRevenueReport, setShowRevenueReport] = useState(false);
+  const [revenueFilter, setRevenueFilter] = useState<RevenueFilter>('day7');
 
   // 同步 ref 與 state
   useEffect(() => {
@@ -69,6 +110,35 @@ export const Dashboard: React.FC = () => {
   const [activityData, setActivityData] = useState<ActivityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [revenueLoading, setRevenueLoading] = useState(false);
+  const [revenuePayments, setRevenuePayments] = useState<PaymentsResponse | null>(null);
+  const [revenueReadings, setRevenueReadings] = useState<ReadingsResponse | null>(null);
+
+  // 載入營收報表資料
+  const loadRevenueReportData = useCallback(async (filter: RevenueFilter) => {
+    const range = getRevenueDateRange(filter);
+    setRevenuePayments(null);
+    setRevenueReadings(null);
+    setRevenueLoading(true);
+    try {
+      const [payments, readings] = await Promise.all([
+        fetchPayments(range.start, range.end),
+        fetchReadings(range.start),
+      ]);
+      setRevenuePayments(payments);
+      setRevenueReadings(readings);
+    } catch (error) {
+      console.error('載入營收報表失敗:', error);
+    } finally {
+      setRevenueLoading(false);
+    }
+  }, []);
+
+  // 當營收報表開啟或篩選變更時，載入資料
+  useEffect(() => {
+    if (showRevenueReport) {
+      loadRevenueReportData(revenueFilter);
+    }
+  }, [showRevenueReport, revenueFilter, loadRevenueReportData]);
 
   // 載入即時資料（場地健康、餘額、帳務）— 不動營收數據
   const loadRealtimeData = useCallback(async () => {
@@ -161,6 +231,60 @@ export const Dashboard: React.FC = () => {
   const totalRevenue = totalCoinRevenue + totalEpayRevenue;
   const isRevenueLoading = loading || revenueLoading;
 
+  // 機台營收報告資料
+  const revenueReport = useMemo(() => {
+    // 營收 summary 資料
+    const s = revenuePayments?.summary;
+    const totalRevenue = s ? ((s.total_coin_amount || 0) + (s.total_card_amount || 0)) : 0;
+    const coinRevenue = s?.total_coin_amount || 0;
+    const cardRevenue = s?.total_card_amount || 0;
+    const totalPlays = s ? Math.floor(totalRevenue / PLAY_PRICE) : 0;
+    const winRate = totalPlays > 0 ? ((s?.total_gift_count || 0) / totalPlays * 100).toFixed(1) : '0';
+
+    // 機台資料（從營收篩選的讀數據）
+    const machines = revenueReadings?.items || [];
+    const machineStats = machines.map(m => ({
+      name: m.machine_name,
+      plays: m.total_play_count,
+      revenue: m.total_play_count * PLAY_PRICE,
+      gifts: m.gift_out_count,
+      status: getMachineStatus(m),
+    }));
+
+    // 計算總出貨數
+    const totalGiftCount = machineStats.reduce((sum, m) => sum + (m.gifts || 0), 0);
+
+    // 熱門機台（遊戲次數 > 0，出貨數 > 0）
+    const hotMachines = machineStats
+      .filter(m => m.plays > 0 && m.gifts > 0)
+      .sort((a, b) => b.plays - a.plays)
+      .slice(0, 3);
+
+    // 異常機台（0 次遊戲 或 高遊戲但 0 出貨）
+    const problemMachines = machineStats.filter(m => 
+      m.plays === 0 || (m.plays > 5 && m.gifts === 0)
+    );
+
+    // 營收 TOP 3
+    const topMachines = [...machineStats]
+      .filter(m => m.plays > 0)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 3);
+
+    return {
+      totalPlays,
+      totalRevenue,
+      coinRevenue,
+      cardRevenue,
+      winRate,
+      totalGiftCount,
+      hotMachines,
+      problemMachines,
+      topMachines,
+      hasMachineData: machines.length > 0,
+    };
+  }, [revenuePayments, revenueReadings]);
+
   const filterTitle = useMemo(() => {
     return FILTER_LABELS.find(f => f.key === selectedFilter)?.label + '總營收';
   }, [selectedFilter]);
@@ -225,13 +349,18 @@ export const Dashboard: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4 p-4">
-        <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm opacity-50">
+        <div 
+          onClick={() => setShowRevenueReport(true)}
+          className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm cursor-pointer active:scale-95 transition-transform"
+        >
           <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
-            <span className="material-symbols-outlined text-slate-400">bar_chart</span>
+            <span className="material-symbols-outlined text-primary">insights</span>
           </div>
           <div>
-            <p className="text-slate-400 dark:text-zinc-500 text-base font-bold">營收報表</p>
-            <p className="text-slate-400 dark:text-zinc-600 text-[10px] font-bold">開發中</p>
+            <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">營收報表</p>
+            <p className="text-primary text-lg font-bold">
+              {revenueReport ? `$${revenueReport.totalRevenue.toLocaleString()}` : '--'}
+            </p>
           </div>
         </div>
         <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm">
@@ -313,6 +442,151 @@ export const Dashboard: React.FC = () => {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+        {/* 營收報表 Modal - 獨立於主要內容 */}
+        {showRevenueReport && revenueReport && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowRevenueReport(false)}></div>
+          <div className="relative w-full max-w-[430px] bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col pb-10 animate-slide-up max-h-[80vh] overflow-y-auto">
+            <div className="flex h-1.5 w-full items-center justify-center py-4">
+              <div className="h-1.5 w-12 rounded-full bg-white/20"></div>
+            </div>
+            <div className="px-6 pb-4">
+              <h1 className="text-white text-xl font-bold text-center">📊 營收報告</h1>
+              {/* 篩選按鈕 */}
+              <div className="flex gap-2 mt-3 justify-center">
+                {REVENUE_FILTER_LABELS.map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setRevenueFilter(f.key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      revenueFilter === f.key
+                        ? 'bg-primary text-background-dark'
+                        : 'bg-white/10 text-white/50 hover:bg-white/15'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-6 space-y-4">
+              {/* 總覽數據 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-white/50 text-xs">遊戲次數</p>
+                  <p className="text-white font-bold text-lg">{revenueReport?.totalPlays || 0}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-white/50 text-xs">總營收</p>
+                  <p className="text-primary font-bold text-lg">${(revenueReport?.totalRevenue || 0).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* 現金與電支 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-white/50 text-xs">現金收入</p>
+                  <p className="text-green-400 font-bold">${(revenueReport?.coinRevenue || 0).toLocaleString()}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-white/50 text-xs">電支收入</p>
+                  <p className="text-blue-400 font-bold">${(revenueReport?.cardRevenue || 0).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* 出貨數量 */}
+              <div className="bg-white/5 rounded-xl p-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-white/50 text-xs">總出貨數</span>
+                  <span className="text-white font-bold">{revenueReport?.totalGiftCount || 0} 個</span>
+                </div>
+              </div>
+
+              {/* 熱門機台 */}
+              {revenueReport?.hotMachines && revenueReport.hotMachines.length > 0 && (
+                <div>
+                  <p className="text-primary text-sm font-bold mb-2 flex items-center gap-1">
+                    <span>🔥</span> 熱門機台（應補貨）
+                  </p>
+                  <div className="space-y-2">
+                    {revenueReport.hotMachines.map((m, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-400 font-bold">#{idx + 1}</span>
+                          <span className="text-white text-sm">機台 {m.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-white text-sm">{m.plays} 次遊戲</p>
+                          <p className="text-green-400 text-xs">已出貨 {m.gifts} 個</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 異常機台 */}
+              {revenueReport?.problemMachines && revenueReport.problemMachines.length > 0 && (
+                <div>
+                  <p className="text-red-400 text-sm font-bold mb-2 flex items-center gap-1">
+                    <span>⚠️</span> 異常機台（需檢查）
+                  </p>
+                  <div className="space-y-2">
+                    {revenueReport.problemMachines.map((m, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-red-400 font-bold">!</span>
+                          <span className="text-white text-sm">機台 {m.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-red-400 text-sm">{m.plays === 0 ? '0 次遊戲' : '高遊戲 0 出貨'}</p>
+                          <p className="text-white/50 text-xs">{m.status === 'OFFLINE' ? '離線中' : '設定異常'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 營收 TOP 3 */}
+              {revenueReport?.topMachines && revenueReport.topMachines.length > 0 && (
+                <div>
+                  <p className="text-white/70 text-sm font-bold mb-2 flex items-center gap-1">
+                    <span>🏆</span> 營收 TOP 3
+                  </p>
+                  <div className="space-y-2">
+                    {revenueReport.topMachines.map((m, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
+                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+                          </span>
+                          <span className="text-white text-sm">機台 {m.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-primary font-bold">${m.revenue.toLocaleString()}</p>
+                          <p className="text-white/50 text-xs">{m.plays} 次</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 pt-4">
+              <button 
+                onClick={() => setShowRevenueReport(false)}
+                className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-3 rounded-xl transition-colors"
+              >
+                關閉
+              </button>
+            </div>
           </div>
         </div>
       )}
