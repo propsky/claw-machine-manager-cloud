@@ -460,7 +460,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <span className={`text-sm font-bold ${
-                  item.type === 'income' ? 'text-green-500' : 'text-white'
+                  item.type === 'income' ? 'text-green-500' : 'text-red-500'
                 }`}>
                   {item.type === 'income' ? '+' : '-'}${item.amount.toLocaleString()}
                 </span>
