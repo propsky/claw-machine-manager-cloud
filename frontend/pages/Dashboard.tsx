@@ -370,12 +370,10 @@ export const Dashboard: React.FC = () => {
             ))}
           </div>
         </div>
-        )}
       )}
-    </div>
 
-    {/* 營收報表 Modal */}
-      {showRevenueReport && revenueReport && (
+        {/* 營收報表 Modal - 獨立於主要內容 */}
+        {showRevenueReport && revenueReport && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowRevenueReport(false)}></div>
           <div className="relative w-full max-w-[430px] bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col pb-10 animate-slide-up max-h-[80vh] overflow-y-auto">
