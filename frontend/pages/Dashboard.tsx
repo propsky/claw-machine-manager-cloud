@@ -120,12 +120,8 @@ export const Dashboard: React.FC = () => {
     setRevenueReadings(null);
     setRevenueLoading(true);
     try {
-      const [payments, readings] = await Promise.all([
-        fetchPayments(range.start, range.end),
-        fetchReadings(range.start),
-      ]);
+      const payments = await fetchPayments(range.start, range.end);
       setRevenuePayments(payments);
-      setRevenueReadings(readings);
     } catch (error) {
       console.error('載入營收報表失敗:', error);
     } finally {
@@ -241,18 +237,27 @@ export const Dashboard: React.FC = () => {
     const totalPlays = s ? Math.floor(totalRevenue / PLAY_PRICE) : 0;
     const winRate = totalPlays > 0 ? ((s?.total_gift_count || 0) / totalPlays * 100).toFixed(1) : '0';
 
-    // 機台資料（從營收篩選的讀數據）
-    const machines = revenueReadings?.items || [];
-    const machineStats = machines.map(m => ({
-      name: m.machine_name,
-      plays: m.total_play_count,
-      revenue: m.total_play_count * PLAY_PRICE,
-      gifts: m.gift_out_count,
-      status: getMachineStatus(m),
-    }));
+    // 從 payments items 按機台聚合，正確涵蓋整個日期區間
+    const machineMap = new Map<string, { name: string; plays: number; revenue: number; gifts: number }>();
+    (revenuePayments?.items || []).forEach(item => {
+      const key = item.machine_id || item.machine_name;
+      const name = item.machine_display_name || item.machine_name;
+      const plays = item.transaction_count || 0;
+      const revenue = item.total_revenue || 0;
+      const gifts = item.prize_count || 0;
+      if (machineMap.has(key)) {
+        const existing = machineMap.get(key)!;
+        existing.plays += plays;
+        existing.revenue += revenue;
+        existing.gifts += gifts;
+      } else {
+        machineMap.set(key, { name, plays, revenue, gifts });
+      }
+    });
+    const machineStats = Array.from(machineMap.values());
 
     // 計算總出貨數
-    const totalGiftCount = machineStats.reduce((sum, m) => sum + (m.gifts || 0), 0);
+    const totalGiftCount = machineStats.reduce((sum, m) => sum + m.gifts, 0);
 
     // 熱門機台（遊戲次數 > 0，出貨數 > 0）
     const hotMachines = machineStats
@@ -261,7 +266,7 @@ export const Dashboard: React.FC = () => {
       .slice(0, 3);
 
     // 異常機台（0 次遊戲 或 高遊戲但 0 出貨）
-    const problemMachines = machineStats.filter(m => 
+    const problemMachines = machineStats.filter(m =>
       m.plays === 0 || (m.plays > 5 && m.gifts === 0)
     );
 
@@ -281,9 +286,9 @@ export const Dashboard: React.FC = () => {
       hotMachines,
       problemMachines,
       topMachines,
-      hasMachineData: machines.length > 0,
+      hasMachineData: machineStats.length > 0,
     };
-  }, [revenuePayments, revenueReadings]);
+  }, [revenuePayments]);
 
   const filterTitle = useMemo(() => {
     return FILTER_LABELS.find(f => f.key === selectedFilter)?.label + '總營收';
