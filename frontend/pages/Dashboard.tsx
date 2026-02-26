@@ -252,7 +252,7 @@ export const Dashboard: React.FC = () => {
     const cardRevenue = s?.total_card_amount || 0;
     const totalPlays = s?.total_transaction_count || 0;
     const totalPrizeCount = s?.total_prize_count || 0;
-    const winRate = totalPlays > 0 ? (totalPrizeCount / totalPlays * 100).toFixed(1) : '0';
+    const avgPayout = totalPrizeCount > 0 ? Math.round(totalRevenue / totalPrizeCount) : 0;
     const avgDailyRevenue = Math.round(totalRevenue / FILTER_DAYS[revenueFilter]);
 
     // 從 payments items 按機台聚合，正確涵蓋整個日期區間
@@ -299,7 +299,7 @@ export const Dashboard: React.FC = () => {
       totalRevenue,
       coinRevenue,
       cardRevenue,
-      winRate,
+      avgPayout,
       avgDailyRevenue,
       totalGiftCount,
       hotMachines,
@@ -530,8 +530,8 @@ export const Dashboard: React.FC = () => {
                   <p className="text-yellow-400 font-bold">${(revenueReport?.avgDailyRevenue || 0).toLocaleString()}</p>
                 </div>
                 <div className="bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-white/50 text-xs">出獎率</p>
-                  <p className="text-purple-400 font-bold">{revenueReport?.winRate || '0'}%</p>
+                  <p className="text-white/50 text-xs">均出</p>
+                  <p className="text-purple-400 font-bold">${(revenueReport?.avgPayout || 0).toLocaleString()}</p>
                 </div>
               </div>
 
