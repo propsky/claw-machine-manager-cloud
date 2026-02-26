@@ -88,6 +88,7 @@ const REVENUE_FILTER_LABELS: { key: RevenueFilter; label: string }[] = [
   { key: 'day7', label: '7天內' },
   { key: 'day30', label: '30天內' },
 ];
+const FILTER_DAYS: Record<RevenueFilter, number> = { day1: 1, day3: 3, day7: 7, day30: 30 };
 
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
@@ -249,8 +250,10 @@ export const Dashboard: React.FC = () => {
     const totalRevenue = s ? ((s.total_coin_amount || 0) + (s.total_card_amount || 0)) : 0;
     const coinRevenue = s?.total_coin_amount || 0;
     const cardRevenue = s?.total_card_amount || 0;
-    const totalPlays = s ? Math.floor(totalRevenue / PLAY_PRICE) : 0;
-    const winRate = totalPlays > 0 ? ((s?.total_gift_count || 0) / totalPlays * 100).toFixed(1) : '0';
+    const totalPlays = s?.total_transaction_count || 0;
+    const totalPrizeCount = s?.total_prize_count || 0;
+    const winRate = totalPlays > 0 ? (totalPrizeCount / totalPlays * 100).toFixed(1) : '0';
+    const avgDailyRevenue = Math.round(totalRevenue / FILTER_DAYS[revenueFilter]);
 
     // 從 payments items 按機台聚合，正確涵蓋整個日期區間
     const machineMap = new Map<string, { name: string; plays: number; revenue: number; gifts: number }>();
@@ -297,13 +300,14 @@ export const Dashboard: React.FC = () => {
       coinRevenue,
       cardRevenue,
       winRate,
+      avgDailyRevenue,
       totalGiftCount,
       hotMachines,
       problemMachines,
       topMachines,
       hasMachineData: machineStats.length > 0,
     };
-  }, [revenuePayments]);
+  }, [revenuePayments, revenueFilter]);
 
   const filterTitle = useMemo(() => {
     return FILTER_LABELS.find(f => f.key === selectedFilter)?.label + '總營收';
@@ -516,6 +520,18 @@ export const Dashboard: React.FC = () => {
                 <div className="bg-white/5 rounded-xl p-3 text-center">
                   <p className="text-white/50 text-xs">電支收入</p>
                   <p className="text-blue-400 font-bold">${(revenueReport?.cardRevenue || 0).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* 均日營收 & 出獎率 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-white/50 text-xs">均日營收</p>
+                  <p className="text-yellow-400 font-bold">${(revenueReport?.avgDailyRevenue || 0).toLocaleString()}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-white/50 text-xs">出獎率</p>
+                  <p className="text-purple-400 font-bold">{revenueReport?.winRate || '0'}%</p>
                 </div>
               </div>
 
