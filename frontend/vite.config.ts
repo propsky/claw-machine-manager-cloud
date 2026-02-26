@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        allowedHosts: ['.ngrok-free.app', '.loca.lt'],
+        allowedHosts: ['.ngrok-free.app', '.loca.lt', 'unimpacted-saliently-maura.ngrok-free.dev'],
         proxy: {
           '/api/auth': {
             target: 'https://smartpay.propskynet.com',
