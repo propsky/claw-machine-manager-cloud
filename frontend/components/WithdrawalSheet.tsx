@@ -85,7 +85,12 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
     setError(null);
 
     try {
-      await applyWithdrawal(inputAmount);
+      await applyWithdrawal(inputAmount, {
+        bank_code: selectedAccount.bank_code,
+        bank_name: selectedAccount.bank_name,
+        account_number: selectedAccount.account_number,
+        account_holder_name: selectedAccount.account_holder_name,
+      });
       setSuccess(true);
       onSuccess?.();
       // 2 秒後關閉

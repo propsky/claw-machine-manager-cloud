@@ -190,11 +190,26 @@ export async function setDefaultBankAccount(accountId: number): Promise<Favorite
 
 // ==================== 提領 API ====================
 
-export async function applyWithdrawal(amount: number): Promise<WithdrawalApplyResponse> {
+export async function applyWithdrawal(amount: number, bankAccount?: {
+  bank_code: string;
+  bank_name: string;
+  account_number: string;
+  account_holder_name: string;
+}): Promise<WithdrawalApplyResponse> {
   const url = getBaseUrl('/api/withdrawal/apply');
+  const body: any = { amount };
+  
+  // 如果有銀行帳戶資料，一併傳送
+  if (bankAccount) {
+    body.bank_code = bankAccount.bank_code;
+    body.bank_name = bankAccount.bank_name;
+    body.account_number = bankAccount.account_number;
+    body.account_holder_name = bankAccount.account_holder_name;
+  }
+  
   const response = await authFetch(url, {
     method: 'POST',
-    body: JSON.stringify({ amount }),
+    body: JSON.stringify(body),
   });
   return response.json();
 }
