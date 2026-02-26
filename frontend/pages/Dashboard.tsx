@@ -370,10 +370,11 @@ export const Dashboard: React.FC = () => {
             ))}
           </div>
         </div>
+        )}
       )}
     </div>
 
-      {/* 營收報表 Modal */}
+    {/* 營收報表 Modal */}
       {showRevenueReport && revenueReport && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowRevenueReport(false)}></div>
