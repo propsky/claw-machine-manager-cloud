@@ -150,62 +150,62 @@ export const Machines: React.FC = () => {
                       {machine.machine_name}
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-500 mt-0.5">{machine.store_name}</span>
+                  <span className="text-xs text-slate-500 mt-0.5">{machine.store_name}</span>
 
                   <div className="flex items-center gap-1.5 mt-1">
                     {status === MachineStatus.ONLINE && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-neon-green/10 border border-neon-green/20">
                         <div className="h-1.5 w-1.5 rounded-full bg-neon-green animate-pulse"></div>
-                        <span className="text-[10px] text-neon-green font-bold tracking-wider uppercase">上線</span>
+                        <span className="text-xs text-neon-green font-bold tracking-wider uppercase">上線</span>
                       </div>
                     )}
                     {status === MachineStatus.OFFLINE && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-bright-red/10 border border-bright-red/20">
                         <div className="h-1.5 w-1.5 rounded-full bg-bright-red"></div>
-                        <span className="text-[10px] text-bright-red font-bold tracking-wider uppercase">斷線</span>
+                        <span className="text-xs text-bright-red font-bold tracking-wider uppercase">斷線</span>
                       </div>
                     )}
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-600 font-medium">
+                <span className="text-xs text-slate-600 font-medium">
                   更新 {formatTime(machine.last_reading_time)}
                 </span>
               </div>
 
               <div className="grid grid-cols-4 gap-y-4 gap-x-2">
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-500 font-medium mb-0.5">總遊玩</span>
-                  <span className="text-[15px] font-bold tracking-tight text-white">
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">總遊玩</span>
+                  <span className="text-base font-bold tracking-tight text-white">
                     {machine.total_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-500 font-medium mb-0.5">投幣</span>
-                  <span className="text-[15px] font-bold tracking-tight text-white">
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">投幣</span>
+                  <span className="text-base font-bold tracking-tight text-white">
                     {machine.coin_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-500 font-medium mb-0.5">電支</span>
-                  <span className="text-[15px] font-bold tracking-tight text-primary">
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">電支</span>
+                  <span className="text-base font-bold tracking-tight text-primary">
                     {machine.epay_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-[11px] text-slate-500 font-medium mb-0.5">營業額</span>
-                  <span className="text-[15px] font-bold tracking-tight text-neon-green">
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">營業額</span>
+                  <span className="text-base font-bold tracking-tight text-neon-green">
                     ${revenue.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-500 font-medium mb-0.5">出獎數</span>
-                  <span className="text-[15px] font-bold tracking-tight text-white">
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">出獎數</span>
+                  <span className="text-base font-bold tracking-tight text-white">
                     {machine.gift_out_count}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-500 font-medium mb-0.5">均出</span>
-                  <span className={`text-[15px] font-bold tracking-tight
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">均出</span>
+                  <span className={`text-base font-bold tracking-tight
                     ${avgPayout > 800 ? 'text-bright-red font-black' : 'text-white'}`}>
                     {avgPayout > 0 ? avgPayout.toLocaleString() : '--'}
                   </span>
