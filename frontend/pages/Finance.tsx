@@ -135,13 +135,16 @@ export const Finance: React.FC = () => {
   const availableBalance = balanceData?.balance?.available_amount ?? 0;
   // 合併每日結算和提領紀錄
   const combinedRecords = useMemo(() => {
-    const incomeRecords = activityData?.items?.map(item => ({
-      type: 'income' as const,
-      date: item.date,
-      amount: item.amount,
-      description: item.description,
-      status: '',
-    })) || [];
+    // 只取收入類型的活動（排除提領，避免重複）
+    const incomeRecords = activityData?.items
+      ?.filter(item => item.type === 'income')
+      .map(item => ({
+        type: 'income' as const,
+        date: item.date,
+        amount: item.amount,
+        description: item.description,
+        status: '',
+      })) || [];
 
     const withdrawalRecords = withdrawalRequests.map(req => ({
       type: 'withdrawal' as const,
