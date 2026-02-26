@@ -117,7 +117,7 @@ export const Dashboard: React.FC = () => {
     if (showRevenueReport) {
       loadRevenueReportData(revenueFilter);
     }
-  }, [showRevenueReport, revenueFilter]);
+  }, [showRevenueReport, revenueFilter, loadRevenueReportData]);
 
   // 載入即時資料（場地健康、餘額、帳務）— 不動營收數據
   const loadRealtimeData = useCallback(async () => {
@@ -200,8 +200,9 @@ export const Dashboard: React.FC = () => {
   }
 
   // 載入營收報表資料
-  const loadRevenueReportData = async (filter: RevenueFilter) => {
+  const loadRevenueReportData = useCallback(async (filter: RevenueFilter) => {
     const range = getRevenueDateRange(filter);
+    setRevenuePayments(null); // 清空舊資料
     setRevenueLoading(true);
     try {
       const payments = await fetchPayments(range.start, range.end);
@@ -211,7 +212,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setRevenueLoading(false);
     }
-  };
+  }, []);
 
   const machines = realtimeReadings?.items || [];
   const onlineCount = machines.filter(m => getMachineStatus(m) === MachineStatus.ONLINE).length;
@@ -489,114 +490,10 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* 出貨率與數量 */}
+              {/* 出貨數量 */}
               <div className="bg-white/5 rounded-xl p-3">
                 <div className="flex justify-between items-center">
                   <span className="text-white/50 text-xs">總出貨數</span>
                   <span className="text-white font-bold">{revenueReport?.totalGiftCount || 0} 個</span>
                 </div>
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-white/50 text-xs">出貨率</span>
-                  <span className="text-green-400 font-bold">{revenueReport?.winRate || 0}%</span>
-                </div>
-              </div>
-
-              {/* 機台健康報告 - 熱門機台 */}
-              {revenueReport?.hotMachines && revenueReport.hotMachines.length > 0 && (
-                <div>
-                  <p className="text-primary text-sm font-bold mb-2 flex items-center gap-1">
-                    <span>🔥</span> 熱門機台（應補貨）
-                  </p>
-                  <div className="space-y-2">
-                    {revenueReport.hotMachines.map((m, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-xl p-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-green-400 font-bold">#{idx + 1}</span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-white text-sm">{m.plays} 次遊戲</p>
-                          <p className="text-green-400 text-xs">已出貨 {m.gifts} 個</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 機台健康報告 - 異常機台 */}
-              {revenueReport?.problemMachines && revenueReport.problemMachines.length > 0 && (
-                <div>
-                  <p className="text-red-400 text-sm font-bold mb-2 flex items-center gap-1">
-                    <span>⚠️</span> 異常機台
-                  台（需檢</p>
-                  <div className="space-y-2">
-                    {revenueReport.problemMachines.map((m, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-red-400 font-bold">!</span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-red-400 text-sm">{m.plays === 0 ? '0 次遊戲' : '高遊戲 0 出貨'}</p>
-                          <p className="text-white/50 text-xs">{m.status === 'OFFLINE' ? '離線中' : '設定異常'}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 營收 TOP 3 */}
-              {revenueReport?.topMachines && revenueReport.topMachines.length > 0 && (
-                <div>
-                  <p className="text-white/70 text-sm font-bold mb-2 flex items-center gap-1">
-                    <span>🏆</span> 營收 TOP 3
-                  </p>
-                  <div className="space-y-2">
-                    {revenueReport.topMachines.map((m, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-white/5 rounded-xl p-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
-                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
-                          </span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-primary font-bold">${m.revenue.toLocaleString()}</p>
-                          <p className="text-white/50 text-xs">{m.plays} 次</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {revenueLoading && (
-                <div className="text-center py-4">
-                  <span className="text-white/50">載入中...</span>
-                </div>
-              )}
-
-              {(!revenueReport || revenueReport.totalPlays === 0) && !revenueLoading && (
-                <div className="text-center py-8">
-                  <span className="material-symbols-outlined text-white/30 text-4xl">hourglass_empty</span>
-                  <p className="text-white/50 mt-2">目前沒有營收資料</p>
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 pt-4">
-              <button 
-                onClick={() => setShowRevenueReport(false)}
-                className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-3 rounded-xl transition-colors"
-              >
-                關閉
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
