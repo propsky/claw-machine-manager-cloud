@@ -133,33 +133,19 @@ export const Finance: React.FC = () => {
   }, [paymentsData]);
 
   const availableBalance = balanceData?.balance?.available_amount ?? 0;
-  // 合併每日結算和提領紀錄
+  // 直接使用 activity API 作為主要資料來源
   const combinedRecords = useMemo(() => {
-    // 只取收入類型的活動（排除提領，避免重複）
-    const incomeRecords = activityData?.items
-      ?.filter(item => item.type === 'income')
-      .map(item => ({
-        type: 'income' as const,
-        date: item.date,
-        amount: item.amount,
-        description: item.description,
-        status: '',
-      })) || [];
-
-    const withdrawalRecords = withdrawalRequests.map(req => ({
-      type: 'withdrawal' as const,
-      date: req.created_at.split('T')[0],
-      amount: parseFloat(req.amount),
-      description: '提領申請',
-      status: req.status === 'COMPLETED' ? '已撥款' : '已申請',
-      requestNo: req.request_no,
-    }));
-
-    // 合併並按日期排序（新的在前）
-    return [...incomeRecords, ...withdrawalRecords]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10);
-  }, [activityData, withdrawalRequests]);
+    return activityData?.items?.map(item => ({
+      type: item.type as 'income' | 'withdrawal',
+      date: item.date,
+      amount: Math.abs(item.amount), // 取絕對值
+      isNegative: item.amount < 0, // 判斷是否為負數
+      description: item.description,
+      status: item.type === 'withdrawal' && item.details?.status ? 
+        (item.details.status === 'COMPLETED' ? '已撥款' : '已申請') : '',
+      details: item.details,
+    })) || [];
+  }, [activityData]);
 
   const recentActivity = combinedRecords;
 
@@ -320,13 +306,13 @@ export const Finance: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">{item.description}</p>
-                      <p className="text-[10px] text-white/40">{item.date} {item.type === 'withdrawal' && item.status && `・${item.status}`}</p>
+                      <p className="text-[10px] text-white/40">{item.date} {item.status && `・${item.status}`}</p>
                     </div>
                   </div>
                   <span className={`text-sm font-bold ${
-                    item.type === 'income' ? 'text-green-500' : 'text-red-500'
+                    item.type === 'income' || !item.isNegative ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    {item.type === 'income' ? '+' : '-'}${item.amount.toLocaleString()}
+                    {item.type === 'income' || !item.isNegative ? '+' : '-'}${item.amount.toLocaleString()}
                   </span>
                 </div>
               ))}
