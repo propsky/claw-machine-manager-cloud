@@ -19,6 +19,7 @@ export const Settings: React.FC = () => {
   const [profileForm, setProfileForm] = useState({
     real_name: '',
     phone: '',
+    bank_account: '',
     id_card_number: '',
   });
   
@@ -61,6 +62,7 @@ export const Settings: React.FC = () => {
       setProfileForm({
         real_name: data.real_name || '',
         phone: data.phone || '',
+        bank_account: data.bank_account || '',
         id_card_number: data.id_card_number || '',
       });
     } catch (err) {
@@ -76,6 +78,7 @@ export const Settings: React.FC = () => {
       await updateUserProfile({
         real_name: profileForm.real_name,
         phone: profileForm.phone,
+        bank_account: profileForm.bank_account,
         id_card_number: profileForm.id_card_number,
       });
       await loadProfile();
@@ -491,6 +494,17 @@ export const Settings: React.FC = () => {
                   onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                   placeholder="請輸入聯絡電話"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-white/70 text-sm font-medium block mb-2">銀行帳號</label>
+                <input
+                  type="text"
+                  value={profileForm.bank_account}
+                  onChange={e => setProfileForm({...profileForm, bank_account: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  placeholder="請輸入銀行帳號"
                   required
                 />
               </div>
