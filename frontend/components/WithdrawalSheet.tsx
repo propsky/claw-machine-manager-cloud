@@ -159,10 +159,11 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
                   <input 
                     type="number"
+                    step="1"
                     value={withdrawAmount}
-                    onChange={e => setWithdrawAmount(e.target.value)}
+                    onChange={e => setWithdrawAmount(Math.floor(Number(e.target.value)).toString())}
                     max={amount}
-                    min={0}
+                    min={1}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-10 pr-4 text-white text-2xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                     placeholder="0"
                   />
