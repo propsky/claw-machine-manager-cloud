@@ -1,0 +1,8 @@
+# API Proxy for Cloudflare Pages
+# Forward API calls to the backend
+/api/auth/* https://smartpay.propskynet.com/api/users/:splat 200
+/api/store-app/* https://smartpay.propskynet.com/api/store-app/:splat 200
+/api/smartpay/* https://smartpay.propskynet.com/api/:splat 200
+/api/favorite-bank-accounts/* https://smartpay.propskynet.com/api/favorite-bank-accounts/:splat 200
+/api/users/* https://smartpay.propskynet.com/api/users/:splat 200
+/api/withdrawal/* https://smartpay.propskynet.com/api/withdrawal/:splat 200
