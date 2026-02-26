@@ -120,8 +120,23 @@ export const Dashboard: React.FC = () => {
     setRevenueReadings(null);
     setRevenueLoading(true);
     try {
-      const payments = await fetchPayments(range.start, range.end);
-      setRevenuePayments(payments);
+      // 先取第一頁，確認總頁數（API 最大 page_size=100）
+      const firstPage = await fetchPayments(range.start, range.end, 1, 100);
+      const totalPages = firstPage.total_pages || 1;
+
+      let allItems = [...firstPage.items];
+
+      // 若有多頁，並行抓取剩餘頁
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) =>
+            fetchPayments(range.start, range.end, i + 2, 100)
+          )
+        );
+        rest.forEach(p => { allItems = allItems.concat(p.items); });
+      }
+
+      setRevenuePayments({ ...firstPage, items: allItems });
     } catch (error) {
       console.error('載入營收報表失敗:', error);
     } finally {

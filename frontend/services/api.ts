@@ -104,8 +104,11 @@ export async function fetchActivity(): Promise<ActivityResponse> {
   return response.json();
 }
 
-export async function fetchPayments(startDate: string, endDate: string): Promise<PaymentsResponse> {
-  const url = getBaseUrl(`/api/store-app/payments?start_date=${startDate}&end_date=${endDate}`);
+export async function fetchPayments(startDate: string, endDate: string, page?: number, pageSize?: number): Promise<PaymentsResponse> {
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  if (page !== undefined) params.set('page', String(page));
+  if (pageSize !== undefined) params.set('page_size', String(pageSize));
+  const url = getBaseUrl(`/api/store-app/payments?${params.toString()}`);
   const response = await authFetch(url);
   return response.json();
 }
