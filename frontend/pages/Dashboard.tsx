@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MachineStatus, ReadingsResponse, ReadingItem, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
+import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
 
@@ -92,6 +93,8 @@ const FILTER_DAYS: Record<RevenueFilter, number> = { day1: 1, day3: 3, day7: 7, 
 
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
+  // 選中的場地 ID（null = 全部場地）
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   // 用 ref 追蹤最新的 selectedFilter，避免 setInterval 閉包問題
   const selectedFilterRef = useRef<DateFilter>(selectedFilter);
   // 營收報表 Modal
@@ -317,9 +320,11 @@ export const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
       {/* Top Bar */}
       <div className="sticky top-0 z-30 flex items-center bg-background-light/80 dark:bg-background-dark/80 ios-blur p-4 pb-2 justify-between">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-zinc-800">
-          <span className="material-symbols-outlined text-slate-600 dark:text-zinc-400">menu</span>
-        </div>
+        {/* 場地選擇器 */}
+        <StoreSelector
+          selectedStoreId={selectedStoreId}
+          onStoreChange={setSelectedStoreId}
+        />
         <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center dark:text-white">營運總覽</h2>
         <div className="flex w-10 items-center justify-end relative">
           <span className="material-symbols-outlined text-slate-600 dark:text-zinc-400">notifications</span>
