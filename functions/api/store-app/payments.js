@@ -1,14 +1,7 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const startDate = url.searchParams.get('start_date') || '';
-  const endDate = url.searchParams.get('end_date') || '';
-  const page = url.searchParams.get('page') || '';
-  const pageSize = url.searchParams.get('page_size') || '';
   const token = context.request.headers.get('Authorization') || '';
-
-  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
-  if (page) params.set('page', page);
-  if (pageSize) params.set('page_size', pageSize);
+  const params = new URLSearchParams(url.searchParams);
 
   try {
     const response = await fetch(

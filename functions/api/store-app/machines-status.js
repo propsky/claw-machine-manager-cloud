@@ -1,9 +1,11 @@
 export async function onRequest(context) {
+  const url = new URL(context.request.url);
   const token = context.request.headers.get('Authorization') || '';
+  const params = new URLSearchParams(url.searchParams);
 
   try {
     const response = await fetch(
-      'https://smartpay.propskynet.com/api/store-app/machines/status',
+      `https://smartpay.propskynet.com/api/store-app/machines/status?${params.toString()}`,
       { headers: { 'Authorization': token } }
     );
 
