@@ -1,39 +1,25 @@
-export async function onRequestGet({ env, request }) {
-  const authHeader = request.headers.get('Authorization');
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  const token = authHeader.replace('Bearer ', '');
+export async function onRequest(context) {
+  const token = context.request.headers.get('Authorization') || '';
 
   try {
-    // Call the actual API
-    const response = await fetch('https://smartpay.propskynet.com/api/stores/options', {
+    const options = {
+      method: context.request.method,
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      },
+    };
 
-    if (!response.ok) {
-      return new Response(JSON.stringify({ error: 'Failed to fetch store options' }), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
+    const response = await fetch('https://smartpay.propskynet.com/api/stores/options', options);
     const data = await response.json();
     return new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' }
+      status: response.status,
+      headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (err) {
+    return new Response(JSON.stringify({ error: 'Failed to fetch store options' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }
