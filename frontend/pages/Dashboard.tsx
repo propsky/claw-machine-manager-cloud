@@ -125,7 +125,7 @@ export const Dashboard: React.FC = () => {
     setRevenueLoading(true);
     try {
       // 先取第一頁，確認總頁數（API 最大 page_size=100）
-      const firstPage = await fetchPayments(range.start, range.end, 1, 100);
+      const firstPage = await fetchPayments(range.start, range.end, selectedStoreId || undefined, 1, 100);
       const totalPages = firstPage.total_pages || 1;
 
       let allItems = [...firstPage.items];
@@ -134,7 +134,7 @@ export const Dashboard: React.FC = () => {
       if (totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: totalPages - 1 }, (_, i) =>
-            fetchPayments(range.start, range.end, i + 2, 100)
+            fetchPayments(range.start, range.end, selectedStoreId || undefined, i + 2, 100)
           )
         );
         rest.forEach(p => { allItems = allItems.concat(p.items); });
@@ -153,15 +153,15 @@ export const Dashboard: React.FC = () => {
     if (showRevenueReport) {
       loadRevenueReportData(revenueFilter);
     }
-  }, [showRevenueReport, revenueFilter, loadRevenueReportData]);
+  }, [showRevenueReport, revenueFilter, loadRevenueReportData, selectedStoreId]);
 
   // 載入即時資料（場地健康、餘額、帳務）— 不動營收數據
   const loadRealtimeData = useCallback(async () => {
     try {
       const [readings, balance, activity] = await Promise.all([
-        fetchReadings(formatDate(new Date())),
-        fetchBalance(),
-        fetchActivity(),
+        fetchReadings(formatDate(new Date()), selectedStoreId || undefined),
+        fetchBalance(selectedStoreId || undefined),
+        fetchActivity(selectedStoreId || undefined),
       ]);
 
       // 只有在有效數據時才更新
@@ -198,7 +198,7 @@ export const Dashboard: React.FC = () => {
     loadRealtimeData();
     const interval = setInterval(loadRealtimeData, 30000);
     return () => clearInterval(interval);
-  }, [loadRealtimeData]);
+  }, [loadRealtimeData, selectedStoreId]);
 
   // 篩選變更時載入對應營收資料
   useEffect(() => {
@@ -212,7 +212,7 @@ export const Dashboard: React.FC = () => {
     try {
       if (range.isSingleDay) {
         // 單日：用 readings API
-        const readings = await fetchReadings(range.start);
+        const readings = await fetchReadings(range.start, selectedStoreId || undefined);
         const summary = readings.summary;
         setRevenueData({
           coin: summary ? summary.total_coin * PLAY_PRICE : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
