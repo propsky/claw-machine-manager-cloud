@@ -115,6 +115,18 @@ export async function fetchPayments(startDate: string, endDate: string, page?: n
 
 // ==================== SmartPay 機台 API ====================
 
+// 場地選單
+export interface StoreOption {
+  id: number;
+  name: string;
+}
+
+export async function fetchStores(): Promise<StoreOption[]> {
+  const url = getBaseUrl('/api/stores/options');
+  const response = await authFetch(url);
+  return response.json();
+}
+
 const SMARTPAY_API_KEY = import.meta.env.VITE_SMARTPAY_API_KEY || '';
 
 export async function fetchStoreReadings(storeId: number): Promise<StoreReadingsResponse> {
