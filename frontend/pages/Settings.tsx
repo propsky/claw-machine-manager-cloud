@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 declare const __APP_VERSION__: string;
 import { FavoriteBankAccount } from '../types';
 import { fetchBankAccounts, createBankAccount, deleteBankAccount, setDefaultBankAccount, fetchUserProfile, updateUserProfile, UserProfile } from '../services/api';
+import { logout } from '../services/auth';
 import { BANK_CODES, getBankName } from '../constants/bankCodes';
 import { Toast, ToastType } from '../components/Toast';
 
 export const Settings: React.FC = () => {
+  const navigate = useNavigate();
   const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -444,7 +447,10 @@ export const Settings: React.FC = () => {
 
         {/* Logout */}
         <section className="pt-4">
-          <button className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+          <button
+            onClick={() => { logout(); navigate('/login', { replace: true }); }}
+            className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
             <span className="material-symbols-outlined">logout</span>
             登出帳號
           </button>
