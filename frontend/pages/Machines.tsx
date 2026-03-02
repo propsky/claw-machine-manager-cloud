@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MachineStatus, ReadingsResponse, ReadingItem } from '../types';
 import { fetchReadings } from '../services/api';
+import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
 
@@ -36,16 +37,12 @@ export const Machines: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterStatus>('all');
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadData() {
+  // 靜默背景刷新（不清空資料，不顯示 spinner）
+  const loadData = useCallback(async () => {
     try {
-      const data = await fetchReadings(getTodayString());
+      const data = await fetchReadings(getTodayString(), selectedStoreId || undefined);
       setReadingsData(data);
       setError(null);
     } catch (err) {
@@ -53,7 +50,20 @@ export const Machines: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedStoreId]);
+
+  // 切換場地時清空舊資料並顯示 spinner
+  useEffect(() => {
+    setReadingsData(null);
+    setLoading(true);
+  }, [selectedStoreId]);
+
+  // 載入資料 + 30 秒自動刷新
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   const allMachines = readingsData?.items || [];
 
@@ -80,13 +90,12 @@ export const Machines: React.FC = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background-dark/95 backdrop-blur-md px-4 pt-6 pb-2 border-b border-white/10">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-2xl text-primary">analytics</span>
-              <h1 className="text-xl font-bold tracking-tight text-white">機台監控清單</h1>
-            </div>
-          </div>
-          <button onClick={loadData} className="text-slate-400 hover:text-primary transition-colors">
+          <StoreSelector
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+          />
+          <h1 className="text-xl font-bold tracking-tight text-white flex-1 text-center">機台監控</h1>
+          <button onClick={loadData} className="text-slate-400 hover:text-primary transition-colors w-10 flex justify-end">
             <span className="material-symbols-outlined">refresh</span>
           </button>
         </div>

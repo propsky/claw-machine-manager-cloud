@@ -79,7 +79,7 @@ export function StoreSelector({ selectedStoreId, onStoreChange }: StoreSelectorP
           className={`p-1 hover:bg-white/10 rounded ${isLoading ? 'animate-spin' : ''}`}
           title="重新整理場地"
         >
-          🔄
+          <span className="text-2xl leading-none">🔄</span>
         </button>
       </button>
 
