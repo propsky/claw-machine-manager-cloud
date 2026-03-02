@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MachineStatus, ReadingsResponse, ReadingItem } from '../types';
 import { fetchReadings } from '../services/api';
+import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
+const MACHINES_CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
+let machinesCache: { data: ReadingsResponse; cachedAt: number } | null = null;
 
 function getTimeDiffMinutes(lastReadingTime: string): number {
   const lastTime = new Date(lastReadingTime);
@@ -36,16 +39,18 @@ export const Machines: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterStatus>('all');
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadData() {
+  // 拉全部機台資料（不帶 store_id），5 分鐘內使用 cache
+  const loadData = useCallback(async (force = false) => {
+    if (!force && machinesCache && Date.now() - machinesCache.cachedAt < MACHINES_CACHE_TTL) {
+      setReadingsData(machinesCache.data);
+      setLoading(false);
+      return;
+    }
     try {
       const data = await fetchReadings(getTodayString());
+      machinesCache = { data, cachedAt: Date.now() };
       setReadingsData(data);
       setError(null);
     } catch (err) {
@@ -53,12 +58,24 @@ export const Machines: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  // 載入資料 + 30 秒定時檢查（尊重 cache，5 分鐘內不重打 API）
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(() => loadData(), 30000);
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   const allMachines = readingsData?.items || [];
 
+  // 先依場地過濾（前端，不打 API）
+  const storeMachines = selectedStoreId
+    ? allMachines.filter(m => m.store_id === selectedStoreId)
+    : allMachines;
+
   // 依 store_name + machine_name 排序
-  const sortedMachines = allMachines
+  const sortedMachines = storeMachines
     .slice()
     .sort((a, b) => {
       const storeCompare = a.store_name.localeCompare(b.store_name, 'zh-TW');
@@ -80,13 +97,12 @@ export const Machines: React.FC = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background-dark/95 backdrop-blur-md px-4 pt-6 pb-2 border-b border-white/10">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-2xl text-primary">analytics</span>
-              <h1 className="text-xl font-bold tracking-tight text-white">機台監控清單</h1>
-            </div>
-          </div>
-          <button onClick={loadData} className="text-slate-400 hover:text-primary transition-colors">
+          <StoreSelector
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+          />
+          <h1 className="text-xl font-bold tracking-tight text-white flex-1 text-center">機台監控</h1>
+          <button onClick={() => loadData(true)} className="text-slate-400 hover:text-primary transition-colors w-10 flex justify-end">
             <span className="material-symbols-outlined">refresh</span>
           </button>
         </div>
@@ -97,7 +113,7 @@ export const Machines: React.FC = () => {
               filter === 'all' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
             }`}
           >
-            全部 {readingsData?.total_machines || 0}
+            全部 {sortedMachines.length}
           </button>
           <button
             onClick={() => setFilter('online')}

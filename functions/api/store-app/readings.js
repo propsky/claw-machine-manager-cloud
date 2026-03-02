@@ -1,9 +1,11 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
+  const date = url.searchParams.get('date') || '';
+  const storeId = url.searchParams.get('store_id') || '';
   const token = context.request.headers.get('Authorization') || '';
 
-  // 取得所有查詢參數
-  const params = new URLSearchParams(url.searchParams);
+  const params = new URLSearchParams({ date });
+  if (storeId) params.set('store_id', storeId);
 
   try {
     const response = await fetch(

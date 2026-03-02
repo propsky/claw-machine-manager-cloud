@@ -90,6 +90,7 @@ const REVENUE_FILTER_LABELS: { key: RevenueFilter; label: string }[] = [
   { key: 'day30', label: '30天內' },
 ];
 const FILTER_DAYS: Record<RevenueFilter, number> = { day1: 1, day3: 3, day7: 7, day30: 30 };
+const REVENUE_CACHE_TTL = 30 * 60 * 1000; // 30 分鐘
 
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
@@ -97,6 +98,8 @@ export const Dashboard: React.FC = () => {
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   // 用 ref 追蹤最新的 selectedFilter，避免 setInterval 閉包問題
   const selectedFilterRef = useRef<DateFilter>(selectedFilter);
+  // 營收報表 cache：key = `${filter}-${storeId ?? 'all'}`
+  const revenueCacheRef = useRef<Map<string, { data: PaymentsResponse; cachedAt: number }>>(new Map());
   // 營收報表 Modal
   const [showRevenueReport, setShowRevenueReport] = useState(false);
   const [revenueFilter, setRevenueFilter] = useState<RevenueFilter>('day7');
@@ -117,8 +120,17 @@ export const Dashboard: React.FC = () => {
   const [revenuePayments, setRevenuePayments] = useState<PaymentsResponse | null>(null);
   const [revenueReadings, setRevenueReadings] = useState<ReadingsResponse | null>(null);
 
-  // 載入營收報表資料
+  // 載入營收報表資料（含 30 分鐘 cache）
   const loadRevenueReportData = useCallback(async (filter: RevenueFilter) => {
+    const cacheKey = `${filter}-${selectedStoreId ?? 'all'}`;
+    const cached = revenueCacheRef.current.get(cacheKey);
+
+    // cache 命中且未過期，直接使用
+    if (cached && Date.now() - cached.cachedAt < REVENUE_CACHE_TTL) {
+      setRevenuePayments(cached.data);
+      return;
+    }
+
     const range = getRevenueDateRange(filter);
     setRevenuePayments(null);
     setRevenueReadings(null);
@@ -140,13 +152,15 @@ export const Dashboard: React.FC = () => {
         rest.forEach(p => { allItems = allItems.concat(p.items); });
       }
 
-      setRevenuePayments({ ...firstPage, items: allItems });
+      const result = { ...firstPage, items: allItems };
+      revenueCacheRef.current.set(cacheKey, { data: result, cachedAt: Date.now() });
+      setRevenuePayments(result);
     } catch (error) {
       console.error('載入營收報表失敗:', error);
     } finally {
       setRevenueLoading(false);
     }
-  }, []);
+  }, [selectedStoreId]);
 
   // 當營收報表開啟或篩選變更時，載入資料
   useEffect(() => {
@@ -191,7 +205,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedStoreId]);
 
   // 載入即時資料（一次性 + 定時刷新）
   useEffect(() => {
@@ -200,10 +214,10 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadRealtimeData, selectedStoreId]);
 
-  // 篩選變更時載入對應營收資料
+  // 篩選變更或場地切換時載入對應營收資料
   useEffect(() => {
     loadRevenueData(selectedFilter);
-  }, [selectedFilter]);
+  }, [selectedFilter, selectedStoreId]);
 
   async function loadRevenueData(filter: DateFilter) {
     const range = getDateRange(filter);
@@ -220,7 +234,7 @@ export const Dashboard: React.FC = () => {
         });
       } else {
         // 多日：用 payments API（summary 已含 coin_amount / card_amount）
-        const payments = await fetchPayments(range.start, range.end);
+        const payments = await fetchPayments(range.start, range.end, selectedStoreId || undefined);
         const s = payments.summary;
         setRevenueData({
           coin: s ? s.total_coin_amount : 0,
@@ -377,7 +391,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 p-4">
+      <div className={`grid gap-4 p-4 ${localStorage.getItem('show_balance') === '1' ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <div 
           onClick={() => setShowRevenueReport(true)}
           className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm cursor-pointer active:scale-95 transition-transform"
@@ -392,17 +406,19 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
-            <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+        {localStorage.getItem('show_balance') === '1' && (
+          <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
+              <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+            </div>
+            <div>
+              <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
+              <p className="text-primary text-lg font-bold">
+                {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
-            <p className="text-primary text-lg font-bold">
-              {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
-            </p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Health List */}

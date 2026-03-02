@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 declare const __APP_VERSION__: string;
 import { FavoriteBankAccount } from '../types';
 import { fetchBankAccounts, createBankAccount, deleteBankAccount, setDefaultBankAccount, fetchUserProfile, updateUserProfile, UserProfile } from '../services/api';
+import { logout } from '../services/auth';
 import { BANK_CODES, getBankName } from '../constants/bankCodes';
 import { Toast, ToastType } from '../components/Toast';
 
 export const Settings: React.FC = () => {
+  const navigate = useNavigate();
   const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,6 +17,21 @@ export const Settings: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FavoriteBankAccount | null>(null);
   
+  // 隱藏開發功能：連點版本資訊 20 下解鎖提領金額顯示
+  const [devTapCount, setDevTapCount] = useState(0);
+  const handleVersionTap = () => {
+    const next = devTapCount + 1;
+    if (next === 20) {
+      const current = localStorage.getItem('show_balance') === '1';
+      localStorage.setItem('show_balance', current ? '0' : '1');
+      setToast({ message: current ? '已隱藏提領功能' : '🔓 已解鎖提領功能', type: current ? 'info' : 'success' });
+      setDevTapCount(0);
+    } else {
+      if (next >= 15) setToast({ message: `還差 ${20 - next} 下解鎖`, type: 'info' });
+      setDevTapCount(next);
+    }
+  };
+
   // 個人資料狀態
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -427,7 +445,7 @@ export const Settings: React.FC = () => {
         <section className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">關於</h3>
           <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
-            <div className="flex items-center justify-between p-4">
+            <div className="flex items-center justify-between p-4 select-none" onClick={handleVersionTap}>
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
                   <span className="material-symbols-outlined text-white/60">info</span>
@@ -444,7 +462,10 @@ export const Settings: React.FC = () => {
 
         {/* Logout */}
         <section className="pt-4">
-          <button className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+          <button
+            onClick={() => { logout(); navigate('/login', { replace: true }); }}
+            className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
             <span className="material-symbols-outlined">logout</span>
             登出帳號
           </button>
