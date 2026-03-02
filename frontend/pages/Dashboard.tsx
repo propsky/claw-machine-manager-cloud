@@ -391,7 +391,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 p-4">
+      <div className={`grid gap-4 p-4 ${localStorage.getItem('show_balance') === '1' ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <div 
           onClick={() => setShowRevenueReport(true)}
           className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm cursor-pointer active:scale-95 transition-transform"
@@ -406,17 +406,19 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
-            <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+        {localStorage.getItem('show_balance') === '1' && (
+          <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
+              <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+            </div>
+            <div>
+              <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
+              <p className="text-primary text-lg font-bold">
+                {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
-            <p className="text-primary text-lg font-bold">
-              {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
-            </p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Health List */}
