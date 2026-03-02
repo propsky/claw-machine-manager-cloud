@@ -52,12 +52,6 @@ export const Machines: React.FC = () => {
     }
   }, [selectedStoreId]);
 
-  // 切換場地時清空舊資料並顯示 spinner
-  useEffect(() => {
-    setReadingsData(null);
-    setLoading(true);
-  }, [selectedStoreId]);
-
   // 載入資料 + 30 秒自動刷新
   useEffect(() => {
     loadData();
