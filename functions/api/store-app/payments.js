@@ -6,7 +6,10 @@ export async function onRequest(context) {
   const pageSize = url.searchParams.get('page_size') || '';
   const token = context.request.headers.get('Authorization') || '';
 
+  const storeId = url.searchParams.get('store_id') || '';
+
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  if (storeId) params.set('store_id', storeId);
   if (page) params.set('page', page);
   if (pageSize) params.set('page_size', pageSize);
 

@@ -191,7 +191,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedStoreId]);
 
   // 載入即時資料（一次性 + 定時刷新）
   useEffect(() => {
@@ -200,10 +200,10 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadRealtimeData, selectedStoreId]);
 
-  // 篩選變更時載入對應營收資料
+  // 篩選變更或場地切換時載入對應營收資料
   useEffect(() => {
     loadRevenueData(selectedFilter);
-  }, [selectedFilter]);
+  }, [selectedFilter, selectedStoreId]);
 
   async function loadRevenueData(filter: DateFilter) {
     const range = getDateRange(filter);
@@ -220,7 +220,7 @@ export const Dashboard: React.FC = () => {
         });
       } else {
         // 多日：用 payments API（summary 已含 coin_amount / card_amount）
-        const payments = await fetchPayments(range.start, range.end);
+        const payments = await fetchPayments(range.start, range.end, selectedStoreId || undefined);
         const s = payments.summary;
         setRevenueData({
           coin: s ? s.total_coin_amount : 0,
