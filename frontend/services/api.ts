@@ -104,9 +104,19 @@ export async function fetchBalance(storeId?: number): Promise<BalanceResponse> {
   return response.json();
 }
 
-export async function fetchActivity(storeId?: number): Promise<ActivityResponse> {
+export async function fetchActivity(
+  storeId?: number,
+  startDate?: string,
+  endDate?: string,
+  page?: number,
+  pageSize?: number
+): Promise<ActivityResponse> {
   const params = new URLSearchParams();
   if (storeId) params.set('store_id', String(storeId));
+  if (startDate) params.set('start_date', startDate);
+  if (endDate) params.set('end_date', endDate);
+  if (page) params.set('page', String(page));
+  if (pageSize) params.set('page_size', String(pageSize));
   const url = getBaseUrl(`/api/store-app/activity?${params.toString()}`);
   const response = await authFetch(url);
   return response.json();

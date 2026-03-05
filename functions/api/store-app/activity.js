@@ -1,10 +1,9 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const storeId = url.searchParams.get('store_id') || '';
   const token = context.request.headers.get('Authorization') || '';
 
-  const params = new URLSearchParams();
-  if (storeId) params.set('store_id', storeId);
+  // 取得所有查詢參數並轉發
+  const params = new URLSearchParams(url.searchParams);
   const query = params.toString() ? `?${params.toString()}` : '';
 
   try {
