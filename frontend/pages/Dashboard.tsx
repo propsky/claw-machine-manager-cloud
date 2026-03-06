@@ -151,19 +151,26 @@ export const Dashboard: React.FC = () => {
 
       let allItems = [...firstPage.items];
 
-      // 若有多頁，並行抓取剩餘頁，每頁完成時更新進度
+      // 若有多頁，每批最多 3 頁循序抓取，避免大量並行打垮後端
       if (totalPages > 1) {
+        const BATCH_SIZE = 3;
         let completed = 1;
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, i) =>
-            fetchPayments(range.start, range.end, selectedStoreId || undefined, i + 2, 100).then(p => {
-              completed++;
-              setLoadProgress(Math.round((completed / totalPages) * 100));
-              return p;
-            })
-          )
-        );
-        rest.forEach(p => { allItems = allItems.concat(p.items); });
+        for (let batchStart = 2; batchStart <= totalPages; batchStart += BATCH_SIZE) {
+          const batchPages = Array.from(
+            { length: Math.min(BATCH_SIZE, totalPages - batchStart + 1) },
+            (_, i) => batchStart + i
+          );
+          const batch = await Promise.all(
+            batchPages.map(page =>
+              fetchPayments(range.start, range.end, selectedStoreId || undefined, page, 100).then(p => {
+                completed++;
+                setLoadProgress(Math.round((completed / totalPages) * 100));
+                return p;
+              })
+            )
+          );
+          batch.forEach(p => { allItems = allItems.concat(p.items); });
+        }
       }
 
       const result = { ...firstPage, items: allItems };
