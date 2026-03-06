@@ -123,6 +123,7 @@ export const Dashboard: React.FC = () => {
   const [activityData, setActivityData] = useState<ActivityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [revenueLoading, setRevenueLoading] = useState(false);
+  const [loadProgress, setLoadProgress] = useState<number | null>(null);
   const [revenuePayments, setRevenuePayments] = useState<PaymentsResponse | null>(null);
   const [revenueReadings, setRevenueReadings] = useState<ReadingsResponse | null>(null);
 
@@ -141,18 +142,25 @@ export const Dashboard: React.FC = () => {
     setRevenuePayments(null);
     setRevenueReadings(null);
     setRevenueLoading(true);
+    setLoadProgress(0);
     try {
       // 先取第一頁，確認總頁數（API 最大 page_size=100）
       const firstPage = await fetchPayments(range.start, range.end, selectedStoreId || undefined, 1, 100);
       const totalPages = firstPage.total_pages || 1;
+      setLoadProgress(Math.round((1 / totalPages) * 100));
 
       let allItems = [...firstPage.items];
 
-      // 若有多頁，並行抓取剩餘頁
+      // 若有多頁，並行抓取剩餘頁，每頁完成時更新進度
       if (totalPages > 1) {
+        let completed = 1;
         const rest = await Promise.all(
           Array.from({ length: totalPages - 1 }, (_, i) =>
-            fetchPayments(range.start, range.end, selectedStoreId || undefined, i + 2, 100)
+            fetchPayments(range.start, range.end, selectedStoreId || undefined, i + 2, 100).then(p => {
+              completed++;
+              setLoadProgress(Math.round((completed / totalPages) * 100));
+              return p;
+            })
           )
         );
         rest.forEach(p => { allItems = allItems.concat(p.items); });
@@ -165,6 +173,7 @@ export const Dashboard: React.FC = () => {
       console.error('載入營收報表失敗:', error);
     } finally {
       setRevenueLoading(false);
+      setLoadProgress(null);
     }
   }, [selectedStoreId]);
 
@@ -525,7 +534,27 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="px-6 space-y-4">
+            {/* 載入中覆蓋層 */}
+            {revenueLoading && (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
+                {loadProgress !== null && loadProgress < 100 ? (
+                  <div className="flex flex-col items-center gap-2 w-48">
+                    <p className="text-white/50 text-sm">載入中 {loadProgress}%</p>
+                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${loadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-white/50 text-sm">載入中</p>
+                )}
+              </div>
+            )}
+
+            <div className={`px-6 space-y-4 ${revenueLoading ? 'hidden' : ''}`}>
               {/* 總覽數據 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/5 rounded-xl p-3 text-center">
