@@ -124,8 +124,23 @@ export const Machines: React.FC = () => {
         const data = await fetchReadings(range.start);
         setFilterReadings(data);
       } else {
-        const data = await fetchPayments(range.start, range.end);
-        setFilterPayments(data);
+        // 取第一頁確認總頁數，再分批取完所有頁（每批 3 頁）
+        const first = await fetchPayments(range.start, range.end, undefined, 1, 100);
+        const totalPages = first.total_pages || 1;
+        let allItems = [...first.items];
+
+        for (let batchStart = 2; batchStart <= totalPages; batchStart += 3) {
+          const batch = Array.from(
+            { length: Math.min(3, totalPages - batchStart + 1) },
+            (_, i) => batchStart + i
+          );
+          const pages = await Promise.all(
+            batch.map(p => fetchPayments(range.start, range.end, undefined, p, 100))
+          );
+          pages.forEach(p => { allItems = allItems.concat(p.items); });
+        }
+
+        setFilterPayments({ ...first, items: allItems });
       }
     } catch (err) {
       console.error('載入篩選資料失敗:', err);
