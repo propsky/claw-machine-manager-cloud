@@ -1,57 +1,105 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { MachineStatus, ReadingsResponse, ReadingItem } from '../types';
-import { fetchReadings } from '../services/api';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
+import { fetchReadings, fetchPayments } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
-const MACHINES_CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
-let machinesCache: { data: ReadingsResponse; cachedAt: number } | null = null;
+const MACHINES_CACHE_TTL = 5 * 60 * 1000;
+let todayCache: { data: ReadingsResponse; cachedAt: number } | null = null;
 
-function getTimeDiffMinutes(lastReadingTime: string): number {
-  const lastTime = new Date(lastReadingTime);
-  const now = new Date();
-  return Math.floor((now.getTime() - lastTime.getTime()) / (1000 * 60));
+type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month';
+type FilterStatus = 'all' | 'online' | 'offline';
+
+const DATE_FILTERS: { key: DateFilter; label: string }[] = [
+  { key: 'today', label: '今日' },
+  { key: 'yesterday', label: '昨日' },
+  { key: 'seven_days', label: '7天內' },
+  { key: 'week', label: '本週' },
+  { key: 'month', label: '本月' },
+];
+
+interface MachineViewItem {
+  key: string;
+  machine_name: string;
+  store_name: string;
+  store_id: number;
+  total_play_count: number;
+  coin_play_count: number;
+  epay_play_count: number;
+  gift_out_count: number;
+  revenue: number;
+  last_reading_time: string | null;
 }
 
-function getMachineStatus(machine: ReadingItem): MachineStatus {
-  const diffMinutes = getTimeDiffMinutes(machine.last_reading_time);
-  // API 約 80 分鐘更新一次，設定 90 分鐘無回應視為離線
-  if (diffMinutes > 90) {
-    return MachineStatus.OFFLINE;
-  }
-  return MachineStatus.ONLINE;
-}
-
-function formatTime(isoString: string): string {
-  const date = new Date(isoString);
-  return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+function formatDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getTodayString(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return formatDate(new Date());
 }
 
-type FilterStatus = 'all' | 'online' | 'offline';
+function getDateRange(filter: DateFilter): { start: string; end: string; isSingleDay: boolean } {
+  const now = new Date();
+  const today = formatDate(now);
+  switch (filter) {
+    case 'today':
+      return { start: today, end: today, isSingleDay: true };
+    case 'yesterday': {
+      const y = new Date(now); y.setDate(now.getDate() - 1);
+      const ys = formatDate(y);
+      return { start: ys, end: ys, isSingleDay: true };
+    }
+    case 'seven_days': {
+      const d = new Date(now); d.setDate(now.getDate() - 6);
+      return { start: formatDate(d), end: today, isSingleDay: false };
+    }
+    case 'week': {
+      const monday = new Date(now);
+      const offset = (now.getDay() === 0 ? 6 : now.getDay() - 1);
+      monday.setDate(now.getDate() - offset);
+      return { start: formatDate(monday), end: today, isSingleDay: false };
+    }
+    case 'month':
+      return { start: formatDate(new Date(now.getFullYear(), now.getMonth(), 1)), end: today, isSingleDay: false };
+  }
+}
+
+function getTimeDiffMinutes(t: string): number {
+  return Math.floor((Date.now() - new Date(t).getTime()) / 60000);
+}
+
+function getMachineStatus(lastReadingTime: string | null): MachineStatus {
+  if (!lastReadingTime) return MachineStatus.OFFLINE;
+  return getTimeDiffMinutes(lastReadingTime) > 90 ? MachineStatus.OFFLINE : MachineStatus.ONLINE;
+}
+
+function formatTime(isoString: string): string {
+  return new Date(isoString).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+}
 
 export const Machines: React.FC = () => {
-  const [readingsData, setReadingsData] = useState<ReadingsResponse | null>(null);
+  const [todayReadings, setTodayReadings] = useState<ReadingsResponse | null>(null);
+  const [filterReadings, setFilterReadings] = useState<ReadingsResponse | null>(null);
+  const [filterPayments, setFilterPayments] = useState<PaymentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
 
-  // 拉全部機台資料（不帶 store_id），5 分鐘內使用 cache
-  const loadData = useCallback(async (force = false) => {
-    if (!force && machinesCache && Date.now() - machinesCache.cachedAt < MACHINES_CACHE_TTL) {
-      setReadingsData(machinesCache.data);
+  // 今日資料（機台狀態用），5 分鐘 cache
+  const loadToday = useCallback(async (force = false) => {
+    if (!force && todayCache && Date.now() - todayCache.cachedAt < MACHINES_CACHE_TTL) {
+      setTodayReadings(todayCache.data);
       setLoading(false);
       return;
     }
     try {
       const data = await fetchReadings(getTodayString());
-      machinesCache = { data, cachedAt: Date.now() };
-      setReadingsData(data);
+      todayCache = { data, cachedAt: Date.now() };
+      setTodayReadings(data);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '載入失敗');
@@ -60,37 +108,153 @@ export const Machines: React.FC = () => {
     }
   }, []);
 
-  // 載入資料 + 30 秒定時檢查（尊重 cache，5 分鐘內不重打 API）
+  // 篩選期間資料
+  const loadFilterData = useCallback(async (filter: DateFilter) => {
+    if (filter === 'today') {
+      setFilterReadings(null);
+      setFilterPayments(null);
+      return;
+    }
+    const range = getDateRange(filter);
+    setFilterLoading(true);
+    setFilterReadings(null);
+    setFilterPayments(null);
+    try {
+      if (range.isSingleDay) {
+        const data = await fetchReadings(range.start);
+        setFilterReadings(data);
+      } else {
+        const data = await fetchPayments(range.start, range.end);
+        setFilterPayments(data);
+      }
+    } catch (err) {
+      console.error('載入篩選資料失敗:', err);
+    } finally {
+      setFilterLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    loadData();
-    const interval = setInterval(() => loadData(), 30000);
+    loadToday();
+    const interval = setInterval(() => loadToday(), 30000);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadToday]);
 
-  const allMachines = readingsData?.items || [];
+  useEffect(() => {
+    loadFilterData(dateFilter);
+  }, [dateFilter, loadFilterData]);
 
-  // 先依場地過濾（前端，不打 API）
+  // 今日機台狀態 map（cpu_id → last_reading_time）
+  const todayStatusMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (todayReadings?.items || []).forEach(item => map.set(item.cpu_id, item.last_reading_time));
+    return map;
+  }, [todayReadings]);
+
+  // store_name → store_id 對照（從今日 readings 取得，供多日 payments 過濾用）
+  const storeNameToId = useMemo(() => {
+    const map = new Map<string, number>();
+    (todayReadings?.items || []).forEach(item => map.set(item.store_name, item.store_id));
+    return map;
+  }, [todayReadings]);
+
+  // 選中場地名稱（多日模式的 store 過濾備用）
+  const selectedStoreName = useMemo(() => {
+    if (!selectedStoreId) return null;
+    return todayReadings?.items.find(i => i.store_id === selectedStoreId)?.store_name ?? null;
+  }, [selectedStoreId, todayReadings]);
+
+  // 統一機台顯示資料
+  const allMachineItems = useMemo((): MachineViewItem[] => {
+    if (dateFilter === 'today') {
+      return (todayReadings?.items || []).map(item => ({
+        key: item.cpu_id,
+        machine_name: item.machine_name,
+        store_name: item.store_name,
+        store_id: item.store_id,
+        total_play_count: item.total_play_count,
+        coin_play_count: item.coin_play_count,
+        epay_play_count: item.epay_play_count,
+        gift_out_count: item.gift_out_count,
+        revenue: item.total_play_count * PLAY_PRICE,
+        last_reading_time: item.last_reading_time,
+      }));
+    }
+
+    const range = getDateRange(dateFilter);
+
+    if (range.isSingleDay && filterReadings) {
+      return (filterReadings.items || []).map(item => ({
+        key: item.cpu_id,
+        machine_name: item.machine_name,
+        store_name: item.store_name,
+        store_id: item.store_id,
+        total_play_count: item.total_play_count,
+        coin_play_count: item.coin_play_count,
+        epay_play_count: item.epay_play_count,
+        gift_out_count: item.gift_out_count,
+        revenue: item.total_play_count * PLAY_PRICE,
+        last_reading_time: todayStatusMap.get(item.cpu_id) ?? null,
+      }));
+    }
+
+    if (!range.isSingleDay && filterPayments) {
+      const machineMap = new Map<string, MachineViewItem>();
+      (filterPayments.items || []).forEach(item => {
+        const key = item.happy_cpu_id || item.machine_id;
+        if (machineMap.has(key)) {
+          const m = machineMap.get(key)!;
+          m.total_play_count += item.transaction_count;
+          m.coin_play_count += item.transaction_count - item.card_play_count;
+          m.epay_play_count += item.card_play_count;
+          m.gift_out_count += item.prize_count;
+          m.revenue += item.total_revenue;
+        } else {
+          machineMap.set(key, {
+            key,
+            machine_name: item.machine_display_name || item.machine_name,
+            store_name: item.store_name,
+            store_id: storeNameToId.get(item.store_name) ?? 0,
+            total_play_count: item.transaction_count,
+            coin_play_count: item.transaction_count - item.card_play_count,
+            epay_play_count: item.card_play_count,
+            gift_out_count: item.prize_count,
+            revenue: item.total_revenue,
+            last_reading_time: todayStatusMap.get(key) ?? null,
+          });
+        }
+      });
+      return Array.from(machineMap.values());
+    }
+
+    return [];
+  }, [dateFilter, todayReadings, filterReadings, filterPayments, todayStatusMap, storeNameToId]);
+
+  // 場地過濾
   const storeMachines = selectedStoreId
-    ? allMachines.filter(m => m.store_id === selectedStoreId)
-    : allMachines;
+    ? allMachineItems.filter(m =>
+        m.store_id === selectedStoreId ||
+        (m.store_id === 0 && m.store_name === selectedStoreName)
+      )
+    : allMachineItems;
 
-  // 依 store_name + machine_name 排序
-  const sortedMachines = storeMachines
-    .slice()
-    .sort((a, b) => {
-      const storeCompare = a.store_name.localeCompare(b.store_name, 'zh-TW');
-      if (storeCompare !== 0) return storeCompare;
-      return a.machine_name.localeCompare(b.machine_name, undefined, { numeric: true });
-    });
+  // 排序
+  const sortedMachines = storeMachines.slice().sort((a, b) => {
+    const sc = a.store_name.localeCompare(b.store_name, 'zh-TW');
+    if (sc !== 0) return sc;
+    return a.machine_name.localeCompare(b.machine_name, undefined, { numeric: true });
+  });
 
-  const onlineCount = sortedMachines.filter(m => getMachineStatus(m) === MachineStatus.ONLINE).length;
-  const offlineCount = sortedMachines.filter(m => getMachineStatus(m) === MachineStatus.OFFLINE).length;
+  const onlineCount = sortedMachines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.ONLINE).length;
+  const offlineCount = sortedMachines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.OFFLINE).length;
 
   const filteredMachines = sortedMachines.filter(m => {
-    if (filter === 'online') return getMachineStatus(m) === MachineStatus.ONLINE;
-    if (filter === 'offline') return getMachineStatus(m) === MachineStatus.OFFLINE;
+    if (statusFilter === 'online') return getMachineStatus(m.last_reading_time) === MachineStatus.ONLINE;
+    if (statusFilter === 'offline') return getMachineStatus(m.last_reading_time) === MachineStatus.OFFLINE;
     return true;
   });
+
+  const isLoading = loading || filterLoading;
 
   return (
     <div className="min-h-screen bg-background-dark">
@@ -102,31 +266,51 @@ export const Machines: React.FC = () => {
             onStoreChange={setSelectedStoreId}
           />
           <h1 className="text-xl font-bold tracking-tight text-white flex-1 text-center">機台監控</h1>
-          <button onClick={() => loadData(true)} className="text-slate-400 hover:text-primary transition-colors w-10 flex justify-end">
+          <button
+            onClick={() => { loadToday(true); loadFilterData(dateFilter); }}
+            className="text-slate-400 hover:text-primary transition-colors w-10 flex justify-end"
+          >
             <span className="material-symbols-outlined">refresh</span>
           </button>
         </div>
+
+        {/* 日期快速篩選 */}
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
+          {DATE_FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setDateFilter(key)}
+              className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
+                dateFilter === key ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* 機台狀態篩選 */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
           <button
-            onClick={() => setFilter('all')}
+            onClick={() => setStatusFilter('all')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              filter === 'all' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              statusFilter === 'all' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
             }`}
           >
             全部 {sortedMachines.length}
           </button>
           <button
-            onClick={() => setFilter('online')}
+            onClick={() => setStatusFilter('online')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              filter === 'online' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              statusFilter === 'online' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
             }`}
           >
             上線 <span className="text-neon-green ml-0.5">{onlineCount}</span>
           </button>
           <button
-            onClick={() => setFilter('offline')}
+            onClick={() => setStatusFilter('offline')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              filter === 'offline' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              statusFilter === 'offline' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
             }`}
           >
             斷線 <span className="text-slate-400 ml-0.5">{offlineCount}</span>
@@ -135,7 +319,7 @@ export const Machines: React.FC = () => {
       </header>
 
       <main className="flex-1 p-3 space-y-2.5">
-        {loading && (
+        {isLoading && (
           <div className="flex items-center justify-center py-20">
             <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
           </div>
@@ -147,16 +331,15 @@ export const Machines: React.FC = () => {
           </div>
         )}
 
-        {!loading && !error && filteredMachines.map((machine, idx) => {
-          const status = getMachineStatus(machine);
-          const revenue = machine.total_play_count * PLAY_PRICE;
+        {!isLoading && !error && filteredMachines.map((machine, idx) => {
+          const status = getMachineStatus(machine.last_reading_time);
           const avgPayout = machine.gift_out_count > 0
-            ? Math.round(revenue / machine.gift_out_count)
+            ? Math.round(machine.revenue / machine.gift_out_count)
             : 0;
 
           return (
             <div
-              key={`${machine.cpu_id}-${idx}`}
+              key={`${machine.key}-${idx}`}
               className="bg-card-dark rounded-xl p-4 shadow-lg border border-white/10 relative overflow-hidden transition-all"
             >
               <div className="flex justify-between items-start mb-4">
@@ -184,7 +367,7 @@ export const Machines: React.FC = () => {
                   </div>
                 </div>
                 <span className="text-xs text-slate-600 font-medium">
-                  更新 {formatTime(machine.last_reading_time)}
+                  {machine.last_reading_time ? `更新 ${formatTime(machine.last_reading_time)}` : ''}
                 </span>
               </div>
 
@@ -210,7 +393,7 @@ export const Machines: React.FC = () => {
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-slate-500 font-medium mb-0.5">營業額</span>
                   <span className="text-base font-bold tracking-tight text-neon-green">
-                    ${revenue.toLocaleString()}
+                    ${machine.revenue.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
@@ -221,8 +404,9 @@ export const Machines: React.FC = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-500 font-medium mb-0.5">均出</span>
-                  <span className={`text-base font-bold tracking-tight
-                    ${avgPayout > 800 ? 'text-bright-red font-black' : 'text-white'}`}>
+                  <span className={`text-base font-bold tracking-tight ${
+                    avgPayout > 800 ? 'text-bright-red font-black' : 'text-white'
+                  }`}>
                     {avgPayout > 0 ? avgPayout.toLocaleString() : '--'}
                   </span>
                 </div>
