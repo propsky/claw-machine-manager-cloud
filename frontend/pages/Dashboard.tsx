@@ -5,7 +5,7 @@ import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
 
-type DateFilter = 'today' | 'yesterday' | 'week' | 'month';
+type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month';
 
 function getMachineStatus(machine: ReadingItem): MachineStatus {
   const lastTime = new Date(machine.last_reading_time);
@@ -31,6 +31,11 @@ function getDateRange(filter: DateFilter): { start: string; end: string; isSingl
       y.setDate(y.getDate() - 1);
       const ys = formatDate(y);
       return { start: ys, end: ys, isSingleDay: true };
+    }
+    case 'seven_days': {
+      const d = new Date(now);
+      d.setDate(now.getDate() - 6);
+      return { start: formatDate(d), end: today, isSingleDay: false };
     }
     case 'week': {
       const dayOfWeek = now.getDay(); // 0=Sun
@@ -77,6 +82,7 @@ function getRevenueDateRange(filter: RevenueFilter): { start: string; end: strin
 const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'today', label: '今日' },
   { key: 'yesterday', label: '昨日' },
+  { key: 'seven_days', label: '7天內' },
   { key: 'week', label: '本週' },
   { key: 'month', label: '本月' },
 ];
