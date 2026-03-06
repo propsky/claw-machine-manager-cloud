@@ -69,6 +69,21 @@ Transaction: { id, type, title, date, amount }
 GEMINI_API_KEY=your_api_key
 ```
 
+## Cloudflare Pages Functions 命名規則
+
+**⚠️ 重要：路徑即 URL，絕對不可使用連字號代替斜線。**
+
+Cloudflare Pages Functions 的檔案路徑直接對應 URL 路徑：
+
+```
+functions/api/stores/options.js   →  /api/stores/options  ✅ 正確
+functions/api/stores-options.js   →  /api/stores-options  ❌ 錯誤（前端從未呼叫此路徑）
+```
+
+**歷史教訓**：`functions/api/stores/options.js` 曾被誤改為 `stores-options.js` 達 **4 次**（commits: 6e8b2a2, 6170814），每次都導致場地下拉選單無法載入。如果看到有人或 AI 把 `stores/options.js` 改成 `stores-options.js`，請直接拒絕並指出這是已知錯誤。
+
+新增 CF Function 時，請對照前端 `api.ts` 的 fetch 路徑確認目錄結構正確。
+
 ## Notes
 
 - UI 目前使用 mock data
