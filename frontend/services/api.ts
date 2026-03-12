@@ -263,3 +263,17 @@ export async function fetchWithdrawalRequests(params?: {
   const response = await authFetch(url);
   return response.json();
 }
+
+// ==================== 機台控制 API ====================
+
+export async function restartMachine(machineId: number): Promise<{ message: string }> {
+  const url = getBaseUrl(`/api/claw-machines/${machineId}/restart`);
+  const response = await authFetch(url, { method: 'POST' });
+  return response.json();
+}
+
+export async function startMachine(machineId: number, epays?: number): Promise<{ message: string }> {
+  const url = getBaseUrl(`/api/claw-machines/${machineId}/start${epays ? '?epays=' + epays : ''}`);
+  const response = await authFetch(url, { method: 'POST' });
+  return response.json();
+}

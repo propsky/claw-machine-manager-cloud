@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
-import { fetchReadings, fetchPayments } from '../services/api';
+import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
@@ -88,6 +88,10 @@ export const Machines: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+  
+  // 機台控制
+  const [selectedMachine, setSelectedMachine] = useState<MachineViewItem | null>(null);
+  const [controlLoading, setControlLoading] = useState(false);
 
   // 今日資料（機台狀態用），5 分鐘 cache
   const loadToday = useCallback(async (force = false) => {
@@ -355,7 +359,8 @@ export const Machines: React.FC = () => {
           return (
             <div
               key={`${machine.key}-${idx}`}
-              className="bg-card-dark rounded-xl p-4 shadow-lg border border-white/10 relative overflow-hidden transition-all"
+              onClick={() => setSelectedMachine(machine)}
+              className="bg-card-dark rounded-xl p-4 shadow-lg border border-white/10 relative overflow-hidden transition-all cursor-pointer active:scale-[0.98]"
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col gap-1">
@@ -431,6 +436,74 @@ export const Machines: React.FC = () => {
         })}
         <div className="h-6"></div>
       </main>
+
+      {/* 機台詳情 Modal */}
+      {selectedMachine && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setSelectedMachine(null)}></div>
+          <div className="relative w-full max-w-md bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 p-6 animate-slide-up">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">{selectedMachine.machine_name}</h2>
+              <button onClick={() => setSelectedMachine(null)} className="text-slate-400">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">門市</span>
+                <span className="text-white">{selectedMachine.store_name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">機台 ID</span>
+                <span className="text-white font-mono text-xs">{selectedMachine.key}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">總遊玩</span>
+                <span className="text-white">{selectedMachine.total_play_count}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">營業額</span>
+                <span className="text-neon-green">${selectedMachine.revenue.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* 控制按鈕 */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
+                    setControlLoading(true);
+                    // TODO: 串接 API
+                    // restartMachine(parseInt(selectedMachine.key)).then(() => alert('已發送重啟指令')).catch(() => alert('發送失敗')).finally(() => setControlLoading(false));
+                    setTimeout(() => { setControlLoading(false); alert('已發送重啟指令（暫時 mock）'); }, 1000);
+                  }
+                }}
+                disabled={controlLoading}
+                className="flex items-center justify-center gap-2 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-xl font-medium transition-colors disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined">restart_alt</span>
+                重啟
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
+                    setControlLoading(true);
+                    // TODO: 串接 API
+                    // startMachine(parseInt(selectedMachine.key)).then(() => alert('已發送投幣指令')).catch(() => alert('發送失敗')).finally(() => setControlLoading(false));
+                    setTimeout(() => { setControlLoading(false); alert('已發送投幣指令（暫時 mock）'); }, 1000);
+                  }
+                }}
+                disabled={controlLoading}
+                className="flex items-center justify-center gap-2 py-3 bg-primary/20 hover:bg-primary/30 text-primary rounded-xl font-medium transition-colors disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined">savings</span>
+                遠端投幣
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
