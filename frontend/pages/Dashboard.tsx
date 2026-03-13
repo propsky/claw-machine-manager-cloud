@@ -295,10 +295,11 @@ export const Dashboard: React.FC = () => {
     const avgDailyRevenue = Math.round(totalRevenue / FILTER_DAYS[revenueFilter]);
 
     // 從 payments items 按機台聚合，正確涵蓋整個日期區間
-    const machineMap = new Map<string, { name: string; plays: number; revenue: number; gifts: number }>();
+    const machineMap = new Map<string, { name: string; store_name: string; plays: number; revenue: number; gifts: number }>();
     (revenuePayments?.items || []).forEach(item => {
       const key = item.machine_id || item.machine_name;
       const name = item.machine_display_name || item.machine_name;
+      const store_name = item.store_name || '';
       const plays = item.transaction_count || 0;
       const revenue = item.total_revenue || 0;
       const gifts = item.prize_count || 0;
@@ -308,7 +309,7 @@ export const Dashboard: React.FC = () => {
         existing.revenue += revenue;
         existing.gifts += gifts;
       } else {
-        machineMap.set(key, { name, plays, revenue, gifts });
+        machineMap.set(key, { name, store_name, plays, revenue, gifts });
       }
     });
     const machineStats = Array.from(machineMap.values());
@@ -617,7 +618,10 @@ export const Dashboard: React.FC = () => {
                       <div key={idx} className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className="text-green-400 font-bold">#{idx + 1}</span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-white text-sm">{m.plays} 次遊戲</p>
@@ -640,7 +644,10 @@ export const Dashboard: React.FC = () => {
                       <div key={idx} className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className="text-red-400 font-bold">!</span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-red-400 text-sm">{m.plays === 0 ? '0 次遊戲' : '高遊戲 0 出貨'}</p>
@@ -665,7 +672,10 @@ export const Dashboard: React.FC = () => {
                           <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
                             {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                           </span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-primary font-bold">${m.revenue.toLocaleString()}</p>
