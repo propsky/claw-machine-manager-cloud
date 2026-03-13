@@ -529,9 +529,6 @@ export const Settings: React.FC = () => {
             </div>
           </div>
         </section>
-            </div>
-          </div>
-        </section>
 
         {/* Logout */}
         <section className="pt-4">
