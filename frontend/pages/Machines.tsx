@@ -474,9 +474,14 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
                     setControlLoading(true);
-                    // TODO: 串接 API
-                    // restartMachine(parseInt(selectedMachine.key)).then(() => alert('已發送重啟指令')).catch(() => alert('發送失敗')).finally(() => setControlLoading(false));
-                    setTimeout(() => { setControlLoading(false); alert('已發送重啟指令（暫時 mock）'); }, 1000);
+                    restartMachine(parseInt(selectedMachine.key))
+                      .then(() => {
+                        alert('✅ 指令已發送，請稍後查看機台狀態');
+                      })
+                      .catch((err) => {
+                        alert('❌ 發送失敗：' + (err.message || err.detail || '未知錯誤'));
+                      })
+                      .finally(() => setControlLoading(false));
                   }
                 }}
                 disabled={controlLoading}
@@ -489,9 +494,14 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
                     setControlLoading(true);
-                    // TODO: 串接 API
-                    // startMachine(parseInt(selectedMachine.key)).then(() => alert('已發送投幣指令')).catch(() => alert('發送失敗')).finally(() => setControlLoading(false));
-                    setTimeout(() => { setControlLoading(false); alert('已發送投幣指令（暫時 mock）'); }, 1000);
+                    startMachine(parseInt(selectedMachine.key))
+                      .then(() => {
+                        alert('✅ 指令已發送，請稍後查看機台狀態');
+                      })
+                      .catch((err) => {
+                        alert('❌ 發送失敗：' + (err.message || err.detail || '未知錯誤'));
+                      })
+                      .finally(() => setControlLoading(false));
                   }
                 }}
                 disabled={controlLoading}

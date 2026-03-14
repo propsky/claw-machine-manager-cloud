@@ -11,6 +11,14 @@ import { Toast, ToastType } from '../components/Toast';
 // 版本更新記錄
 const CHANGELOG = [
   {
+    version: '3.1.1',
+    date: '2026-03-13',
+    features: [
+      '機台控制介面串接真實 API',
+      '重啟/遠端投幣顯示發送結果或錯誤訊息'
+    ]
+  },
+  {
     version: '3.1.0',
     date: '2026-03-06',
     features: [
