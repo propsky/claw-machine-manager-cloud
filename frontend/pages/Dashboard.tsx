@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MachineStatus, ReadingsResponse, ReadingItem, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
+import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
 
-type DateFilter = 'today' | 'yesterday' | 'week' | 'month';
+type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month';
 
 function getMachineStatus(machine: ReadingItem): MachineStatus {
   const lastTime = new Date(machine.last_reading_time);
@@ -30,6 +31,11 @@ function getDateRange(filter: DateFilter): { start: string; end: string; isSingl
       y.setDate(y.getDate() - 1);
       const ys = formatDate(y);
       return { start: ys, end: ys, isSingleDay: true };
+    }
+    case 'seven_days': {
+      const d = new Date(now);
+      d.setDate(now.getDate() - 6);
+      return { start: formatDate(d), end: today, isSingleDay: false };
     }
     case 'week': {
       const dayOfWeek = now.getDay(); // 0=Sun
@@ -76,6 +82,7 @@ function getRevenueDateRange(filter: RevenueFilter): { start: string; end: strin
 const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'today', label: '今日' },
   { key: 'yesterday', label: '昨日' },
+  { key: 'seven_days', label: '7天內' },
   { key: 'week', label: '本週' },
   { key: 'month', label: '本月' },
 ];
@@ -89,11 +96,16 @@ const REVENUE_FILTER_LABELS: { key: RevenueFilter; label: string }[] = [
   { key: 'day30', label: '30天內' },
 ];
 const FILTER_DAYS: Record<RevenueFilter, number> = { day1: 1, day3: 3, day7: 7, day30: 30 };
+const REVENUE_CACHE_TTL = 30 * 60 * 1000; // 30 分鐘
 
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
+  // 選中的場地 ID（null = 全部場地）
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   // 用 ref 追蹤最新的 selectedFilter，避免 setInterval 閉包問題
   const selectedFilterRef = useRef<DateFilter>(selectedFilter);
+  // 營收報表 cache：key = `${filter}-${storeId ?? 'all'}`
+  const revenueCacheRef = useRef<Map<string, { data: PaymentsResponse; cachedAt: number }>>(new Map());
   // 營收報表 Modal
   const [showRevenueReport, setShowRevenueReport] = useState(false);
   const [revenueFilter, setRevenueFilter] = useState<RevenueFilter>('day7');
@@ -111,54 +123,81 @@ export const Dashboard: React.FC = () => {
   const [activityData, setActivityData] = useState<ActivityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [revenueLoading, setRevenueLoading] = useState(false);
+  const [loadProgress, setLoadProgress] = useState<number | null>(null);
   const [revenuePayments, setRevenuePayments] = useState<PaymentsResponse | null>(null);
   const [revenueReadings, setRevenueReadings] = useState<ReadingsResponse | null>(null);
 
-  // 載入營收報表資料
+  // 載入營收報表資料（含 30 分鐘 cache）
   const loadRevenueReportData = useCallback(async (filter: RevenueFilter) => {
+    const cacheKey = `${filter}-${selectedStoreId ?? 'all'}`;
+    const cached = revenueCacheRef.current.get(cacheKey);
+
+    // cache 命中且未過期，直接使用
+    if (cached && Date.now() - cached.cachedAt < REVENUE_CACHE_TTL) {
+      setRevenuePayments(cached.data);
+      return;
+    }
+
     const range = getRevenueDateRange(filter);
     setRevenuePayments(null);
     setRevenueReadings(null);
     setRevenueLoading(true);
+    setLoadProgress(0);
     try {
       // 先取第一頁，確認總頁數（API 最大 page_size=100）
-      const firstPage = await fetchPayments(range.start, range.end, 1, 100);
+      const firstPage = await fetchPayments(range.start, range.end, selectedStoreId || undefined, 1, 100);
       const totalPages = firstPage.total_pages || 1;
+      setLoadProgress(Math.round((1 / totalPages) * 100));
 
       let allItems = [...firstPage.items];
 
-      // 若有多頁，並行抓取剩餘頁
+      // 若有多頁，每批最多 3 頁循序抓取，避免大量並行打垮後端
       if (totalPages > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, i) =>
-            fetchPayments(range.start, range.end, i + 2, 100)
-          )
-        );
-        rest.forEach(p => { allItems = allItems.concat(p.items); });
+        const BATCH_SIZE = 3;
+        let completed = 1;
+        for (let batchStart = 2; batchStart <= totalPages; batchStart += BATCH_SIZE) {
+          const batchPages = Array.from(
+            { length: Math.min(BATCH_SIZE, totalPages - batchStart + 1) },
+            (_, i) => batchStart + i
+          );
+          const batch = await Promise.all(
+            batchPages.map(page =>
+              fetchPayments(range.start, range.end, selectedStoreId || undefined, page, 100).then(p => {
+                completed++;
+                setLoadProgress(Math.round((completed / totalPages) * 100));
+                return p;
+              })
+            )
+          );
+          batch.forEach(p => { allItems = allItems.concat(p.items); });
+        }
       }
 
-      setRevenuePayments({ ...firstPage, items: allItems });
+      const result = { ...firstPage, items: allItems };
+      revenueCacheRef.current.set(cacheKey, { data: result, cachedAt: Date.now() });
+      setRevenuePayments(result);
     } catch (error) {
       console.error('載入營收報表失敗:', error);
     } finally {
       setRevenueLoading(false);
+      setLoadProgress(null);
     }
-  }, []);
+  }, [selectedStoreId]);
 
   // 當營收報表開啟或篩選變更時，載入資料
   useEffect(() => {
     if (showRevenueReport) {
       loadRevenueReportData(revenueFilter);
     }
-  }, [showRevenueReport, revenueFilter, loadRevenueReportData]);
+  }, [showRevenueReport, revenueFilter, loadRevenueReportData, selectedStoreId]);
 
   // 載入即時資料（場地健康、餘額、帳務）— 不動營收數據
   const loadRealtimeData = useCallback(async () => {
     try {
       const [readings, balance, activity] = await Promise.all([
-        fetchReadings(formatDate(new Date())),
-        fetchBalance(),
-        fetchActivity(),
+        fetchReadings(formatDate(new Date()), selectedStoreId || undefined),
+        fetchBalance(selectedStoreId || undefined),
+        fetchActivity(selectedStoreId || undefined),
       ]);
 
       // 只有在有效數據時才更新
@@ -188,19 +227,19 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedStoreId]);
 
   // 載入即時資料（一次性 + 定時刷新）
   useEffect(() => {
     loadRealtimeData();
     const interval = setInterval(loadRealtimeData, 30000);
     return () => clearInterval(interval);
-  }, [loadRealtimeData]);
+  }, [loadRealtimeData, selectedStoreId]);
 
-  // 篩選變更時載入對應營收資料
+  // 篩選變更或場地切換時載入對應營收資料
   useEffect(() => {
     loadRevenueData(selectedFilter);
-  }, [selectedFilter]);
+  }, [selectedFilter, selectedStoreId]);
 
   async function loadRevenueData(filter: DateFilter) {
     const range = getDateRange(filter);
@@ -209,7 +248,7 @@ export const Dashboard: React.FC = () => {
     try {
       if (range.isSingleDay) {
         // 單日：用 readings API
-        const readings = await fetchReadings(range.start);
+        const readings = await fetchReadings(range.start, selectedStoreId || undefined);
         const summary = readings.summary;
         setRevenueData({
           coin: summary ? summary.total_coin * PLAY_PRICE : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
@@ -217,7 +256,7 @@ export const Dashboard: React.FC = () => {
         });
       } else {
         // 多日：用 payments API（summary 已含 coin_amount / card_amount）
-        const payments = await fetchPayments(range.start, range.end);
+        const payments = await fetchPayments(range.start, range.end, selectedStoreId || undefined);
         const s = payments.summary;
         setRevenueData({
           coin: s ? s.total_coin_amount : 0,
@@ -256,10 +295,11 @@ export const Dashboard: React.FC = () => {
     const avgDailyRevenue = Math.round(totalRevenue / FILTER_DAYS[revenueFilter]);
 
     // 從 payments items 按機台聚合，正確涵蓋整個日期區間
-    const machineMap = new Map<string, { name: string; plays: number; revenue: number; gifts: number }>();
+    const machineMap = new Map<string, { name: string; store_name: string; plays: number; revenue: number; gifts: number }>();
     (revenuePayments?.items || []).forEach(item => {
       const key = item.machine_id || item.machine_name;
       const name = item.machine_display_name || item.machine_name;
+      const store_name = item.store_name || '';
       const plays = item.transaction_count || 0;
       const revenue = item.total_revenue || 0;
       const gifts = item.prize_count || 0;
@@ -269,7 +309,7 @@ export const Dashboard: React.FC = () => {
         existing.revenue += revenue;
         existing.gifts += gifts;
       } else {
-        machineMap.set(key, { name, plays, revenue, gifts });
+        machineMap.set(key, { name, store_name, plays, revenue, gifts });
       }
     });
     const machineStats = Array.from(machineMap.values());
@@ -317,9 +357,11 @@ export const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
       {/* Top Bar */}
       <div className="sticky top-0 z-30 flex items-center bg-background-light/80 dark:bg-background-dark/80 ios-blur p-4 pb-2 justify-between">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-zinc-800">
-          <span className="material-symbols-outlined text-slate-600 dark:text-zinc-400">menu</span>
-        </div>
+        {/* 場地選擇器 */}
+        <StoreSelector
+          selectedStoreId={selectedStoreId}
+          onStoreChange={setSelectedStoreId}
+        />
         <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center dark:text-white">營運總覽</h2>
         <div className="flex w-10 items-center justify-end relative">
           <span className="material-symbols-outlined text-slate-600 dark:text-zinc-400">notifications</span>
@@ -372,7 +414,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 p-4">
+      <div className={`grid gap-4 p-4 ${localStorage.getItem('show_balance') === '1' ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <div 
           onClick={() => setShowRevenueReport(true)}
           className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm cursor-pointer active:scale-95 transition-transform"
@@ -387,17 +429,19 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
         </div>
-        <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
-            <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+        {localStorage.getItem('show_balance') === '1' && (
+          <div className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
+              <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
+            </div>
+            <div>
+              <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
+              <p className="text-primary text-lg font-bold">
+                {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
-            <p className="text-primary text-lg font-bold">
-              {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
-            </p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Health List */}
@@ -498,7 +542,27 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="px-6 space-y-4">
+            {/* 載入中覆蓋層 */}
+            {revenueLoading && (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
+                {loadProgress !== null && loadProgress < 100 ? (
+                  <div className="flex flex-col items-center gap-2 w-48">
+                    <p className="text-white/50 text-sm">載入中 {loadProgress}%</p>
+                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${loadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-white/50 text-sm">載入中</p>
+                )}
+              </div>
+            )}
+
+            <div className={`px-6 space-y-4 ${revenueLoading ? 'hidden' : ''}`}>
               {/* 總覽數據 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white/5 rounded-xl p-3 text-center">
@@ -554,7 +618,10 @@ export const Dashboard: React.FC = () => {
                       <div key={idx} className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className="text-green-400 font-bold">#{idx + 1}</span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-white text-sm">{m.plays} 次遊戲</p>
@@ -577,7 +644,10 @@ export const Dashboard: React.FC = () => {
                       <div key={idx} className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className="text-red-400 font-bold">!</span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-red-400 text-sm">{m.plays === 0 ? '0 次遊戲' : '高遊戲 0 出貨'}</p>
@@ -602,7 +672,10 @@ export const Dashboard: React.FC = () => {
                           <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
                             {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                           </span>
-                          <span className="text-white text-sm">機台 {m.name}</span>
+                          <div className="flex flex-col">
+                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-primary font-bold">${m.revenue.toLocaleString()}</p>

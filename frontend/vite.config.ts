@@ -45,6 +45,11 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: true,
           },
+          '/api/stores': {
+            target: 'https://smartpay.propskynet.com',
+            changeOrigin: true,
+            secure: true,
+          },
         },
       },
       plugins: [react()],

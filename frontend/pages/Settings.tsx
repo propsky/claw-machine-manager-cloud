@@ -8,6 +8,65 @@ import { logout } from '../services/auth';
 import { BANK_CODES, getBankName } from '../constants/bankCodes';
 import { Toast, ToastType } from '../components/Toast';
 
+// 版本更新記錄
+const CHANGELOG = [
+  {
+    version: '3.1.1',
+    date: '2026-03-13',
+    features: [
+      '機台控制介面串接真實 API',
+      '重啟/遠端投幣顯示發送結果或錯誤訊息'
+    ]
+  },
+  {
+    version: '3.1.0',
+    date: '2026-03-06',
+    features: [
+      '機台控制介面 - 點擊機台可進行重啟/遠端投幣',
+      '營收報告機台顯示場地名稱',
+      '機器列表場地名稱優化'
+    ]
+  },
+  {
+    version: '3.0.0',
+    date: '2026-02-27',
+    features: [
+      '多場地功能 - 支援 22+ 場地管理',
+      '場地選單 - 可切換不同場地',
+      '營收報告時間篩選 - 24小時/3天/7天/30天',
+      '帳務紀錄日期篩選與分頁',
+      '機器頁面優化'
+    ]
+  },
+  {
+    version: '2.7.0',
+    date: '2026-02-26',
+    features: [
+      '營收報告改版 - 新增熱門機台/異常機台/營收 TOP 3',
+      '出貨數顯示',
+      'Cloudflare Pages API 代理修復'
+    ]
+  },
+  {
+    version: '2.6.0',
+    date: '2026-02-25',
+    features: [
+      '營收報告 - 時間區間篩選功能',
+      '場地版本號自動化'
+    ]
+  },
+  {
+    version: '2.5.0',
+    date: '2026-02-20',
+    features: [
+      '提領功能上線',
+      '銀行帳戶管理',
+      '個人資料驗證',
+      '每日結算與提領紀錄'
+    ]
+  }
+];
+
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [bankAccounts, setBankAccounts] = useState<FavoriteBankAccount[]>([]);
@@ -16,7 +75,23 @@ export const Settings: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FavoriteBankAccount | null>(null);
+  const [showChangelog, setShowChangelog] = useState(false);
   
+  // 隱藏開發功能：連點版本資訊 20 下解鎖提領金額顯示
+  const [devTapCount, setDevTapCount] = useState(0);
+  const handleVersionTap = () => {
+    const next = devTapCount + 1;
+    if (next === 20) {
+      const current = localStorage.getItem('show_balance') === '1';
+      localStorage.setItem('show_balance', current ? '0' : '1');
+      setToast({ message: current ? '已隱藏提領功能' : '🔓 已解鎖提領功能', type: current ? 'info' : 'success' });
+      setDevTapCount(0);
+    } else {
+      if (next >= 15) setToast({ message: `還差 ${20 - next} 下解鎖`, type: 'info' });
+      setDevTapCount(next);
+    }
+  };
+
   // 個人資料狀態
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -430,7 +505,8 @@ export const Settings: React.FC = () => {
         <section className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">關於</h3>
           <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
-            <div className="flex items-center justify-between p-4">
+            {/* 版本資訊 */}
+            <div className="flex items-center justify-between p-4 select-none" onClick={handleVersionTap}>
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
                   <span className="material-symbols-outlined text-white/60">info</span>
@@ -441,6 +517,23 @@ export const Settings: React.FC = () => {
                 </div>
               </div>
               <span className="text-xs text-white/20 px-2 py-1 bg-white/5 rounded-md font-mono">最新版本</span>
+            </div>
+            
+            {/* 更新記錄按鈕 */}
+            <div 
+              className="flex items-center justify-between p-4 border-t border-white/5 cursor-pointer hover:bg-white/5"
+              onClick={() => setShowChangelog(true)}
+            >
+              <div className="flex items-center gap-4">
+                <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary">history</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold">更新記錄</p>
+                  <p className="text-xs text-white/40">查看近 5 次版本更新</p>
+                </div>
+              </div>
+              <span className="material-symbols-outlined text-white/20">chevron_right</span>
             </div>
           </div>
         </section>
@@ -531,6 +624,39 @@ export const Settings: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 更新記錄 Modal */}
+      {showChangelog && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowChangelog(false)}></div>
+          <div className="relative w-full max-w-md bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-lg font-bold text-white">更新記錄</h2>
+              <button onClick={() => setShowChangelog(false)} className="text-slate-400">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {CHANGELOG.map((item) => (
+                <div key={item.version} className="bg-white/5 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-primary font-bold">v{item.version}</span>
+                    <span className="text-xs text-white/40">{item.date}</span>
+                  </div>
+                  <ul className="space-y-1">
+                    {item.features.map((feature, idx) => (
+                      <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
+                        <span className="text-primary mt-1">•</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

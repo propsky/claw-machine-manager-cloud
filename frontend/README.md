@@ -75,7 +75,15 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 - [x] 新增對應 CF Function proxy
 - [ ] 提領時可選擇不同銀行帳戶
 
-### Phase 4: PWA 支援
+### Phase 4: 機台遠端控制
+- [x] 機台詳情 Modal 介面
+- [x] 重啟按鈕 + 二次確認
+- [x] 遠端投幣按鈕 + 二次確認
+- [ ] 串接 `POST /api/claw-machines/{machine_id}/restart` 重啟 API
+- [ ] 串接 `POST /api/claw-machines/{machine_id}/start` 啟動/遠端投幣 API
+- [ ] 後台小卡管理需先設置 MQTT Token 和 Card ID
+
+### Phase 5: PWA 支援
 - [ ] 新增 manifest.json + service worker
 - [ ] 支援「加到手機桌面」
 - [ ] 離線 cache 基本頁面框架
@@ -84,6 +92,22 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 ---
 
 ## 版本資訊
+
+### v3.1.0 (2026-03-06)
+**新功能**
+- 機台控制介面：點擊機台彈出詳情 Modal，可進行重啟/遠端投幣（需後端 API 支援）
+- 營收報告的熱門機台、異常機台、營收 TOP 3 新增顯示場地名稱
+- 機器列表場地名稱優化
+- 設定頁新增「更新記錄」功能，顯示近 5 次版本更新
+- 版本號更新至 3.1.0
+
+### v3.0.0 (2026-02-27)
+**新功能**
+- 多場地功能：支援 22+ 場地管理
+- 場地選單：可切換不同場地查看資料
+- 營收報告時間篩選：24小時內、3天內、7天內、30天內
+- 帳務紀錄日期篩選與分頁功能
+- 機器列表優化
 
 ### v2.7.0 (2026-02-26)
 **Bug 修復**

@@ -1,11 +1,15 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const date = url.searchParams.get('date') || '';
+  const storeId = url.searchParams.get('store_id') || '';
   const token = context.request.headers.get('Authorization') || '';
+
+  const params = new URLSearchParams({ date });
+  if (storeId) params.set('store_id', storeId);
 
   try {
     const response = await fetch(
-      `https://smartpay.propskynet.com/api/store-app/readings?date=${date}`,
+      `https://smartpay.propskynet.com/api/store-app/readings?${params.toString()}`,
       { headers: { 'Authorization': token } }
     );
 

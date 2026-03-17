@@ -102,6 +102,9 @@ export interface ActivityItem {
 export interface ActivityResponse {
   items: ActivityItem[];
   total_count: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
 }
 
 // GET /api/store-app/payments
