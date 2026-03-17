@@ -29,10 +29,10 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-sm space-y-8">
         {/* Logo Area */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center size-16 rounded-2xl bg-primary/10 mb-2">
-            <span className="material-symbols-outlined text-primary text-4xl">toys</span>
+          <div className="flex items-center justify-center mb-2">
+            <img src="/propsky-logo.png" alt="Propsky 擎天" className="h-16 object-contain" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">娃娃機台場管理</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">擎天智慧販賣機管理</h1>
           <p className="text-sm text-white/40">請登入您的帳號</p>
         </div>
 
@@ -88,7 +88,7 @@ export const Login: React.FC = () => {
         </form>
 
         <p className="text-center text-[11px] text-white/20">
-          SmartPay Claw Machine Manager
+          擎天有限公司 Propsky
         </p>
       </div>
     </div>

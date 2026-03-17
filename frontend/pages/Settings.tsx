@@ -538,8 +538,38 @@ export const Settings: React.FC = () => {
           </div>
         </section>
 
+        {/* 關於我們 */}
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold text-white/40 uppercase tracking-wider px-1">關於我們</h2>
+          <a
+            href="https://www.propskynet.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-white/5 hover:bg-white/10 text-white py-4 rounded-xl border border-white/10 transition-all flex items-center gap-3 px-4 active:scale-[0.98]"
+          >
+            <img src="/propsky-logo.png" alt="Propsky" className="h-8 object-contain" />
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold">擎天有限公司</p>
+              <p className="text-xs text-white/40">www.propskynet.com</p>
+            </div>
+            <span className="material-symbols-outlined text-white/30">open_in_new</span>
+          </a>
+          <div className="bg-white/5 rounded-xl border border-white/10 px-4 py-3 space-y-1">
+            <p className="text-xs text-white/60">擎天娃娃機管理平台，提供雲端物聯卡、後台管理系統、電子支付整合與行銷解決方案。</p>
+            <a
+              href="https://lin.ee/Mz1uIEc"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-green-400 hover:text-green-300 mt-1"
+            >
+              <span className="material-symbols-outlined text-base">chat</span>
+              加入 LINE 官方帳號
+            </a>
+          </div>
+        </section>
+
         {/* Logout */}
-        <section className="pt-4">
+        <section className="pt-2">
           <button
             onClick={() => { logout(); navigate('/login', { replace: true }); }}
             className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
@@ -547,7 +577,7 @@ export const Settings: React.FC = () => {
             <span className="material-symbols-outlined">logout</span>
             登出帳號
           </button>
-          <p className="text-center text-[10px] text-white/20 mt-6">Claw Machine Manager Cloud © 2023</p>
+          <p className="text-center text-[10px] text-white/20 mt-6">擎天智慧販賣機管理 © 2026</p>
         </section>
       </main>
 
