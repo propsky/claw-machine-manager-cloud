@@ -93,6 +93,10 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 
 ## 版本資訊
 
+### v3.1.5 (2026-03-17)
+**修正**
+- 修正 machines/status CF Function 路徑錯誤（machines-status.js → machines/status.js）
+
 ### v3.1.4 (2026-03-17)
 **修正**
 - 修正機台重啟/遠端投幣送出錯誤 ID 的問題：parseInt("8C4B1470EB1C") = 8，改為直接傳字串 cpu_id
