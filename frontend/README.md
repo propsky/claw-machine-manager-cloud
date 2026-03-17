@@ -93,6 +93,10 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 
 ## 版本資訊
 
+### v3.1.3 (2026-03-17)
+**修正**
+- 機台控制改用 cpu_id，修正多日模式下送出錯誤機台 ID 導致重啟/遠端投幣失敗
+
 ### v3.1.2 (2026-03-17)
 **修正**
 - 新增 CF Function proxy，修正機台重啟與遠端投幣回傳 405 錯誤

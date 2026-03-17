@@ -20,6 +20,7 @@ const DATE_FILTERS: { key: DateFilter; label: string }[] = [
 
 interface MachineViewItem {
   key: string;
+  cpu_id: string;
   machine_name: string;
   store_name: string;
   store_id: number;
@@ -188,6 +189,7 @@ export const Machines: React.FC = () => {
     if (dateFilter === 'today') {
       return (todayReadings?.items || []).map(item => ({
         key: item.cpu_id,
+        cpu_id: item.cpu_id,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,
@@ -205,6 +207,7 @@ export const Machines: React.FC = () => {
     if (range.isSingleDay && filterReadings) {
       return (filterReadings.items || []).map(item => ({
         key: item.cpu_id,
+        cpu_id: item.cpu_id,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,
@@ -231,6 +234,7 @@ export const Machines: React.FC = () => {
         } else {
           machineMap.set(key, {
             key,
+            cpu_id: item.happy_cpu_id,
             machine_name: item.machine_display_name || item.machine_name,
             store_name: item.store_name,
             store_id: storeNameToId.get(item.store_name) ?? 0,
@@ -474,7 +478,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
                     setControlLoading(true);
-                    restartMachine(parseInt(selectedMachine.key))
+                    restartMachine(parseInt(selectedMachine.cpu_id))
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
@@ -494,7 +498,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
                     setControlLoading(true);
-                    startMachine(parseInt(selectedMachine.key))
+                    startMachine(parseInt(selectedMachine.cpu_id))
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
