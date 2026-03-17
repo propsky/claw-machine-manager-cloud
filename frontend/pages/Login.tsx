@@ -30,7 +30,9 @@ export const Login: React.FC = () => {
         {/* Logo Area */}
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center mb-2">
-            <img src="/propsky-logo.png" alt="Propsky 擎天" className="h-16 object-contain" />
+            <div className="bg-white rounded-2xl px-6 py-3">
+              <img src="/propsky-logo.png" alt="Propsky 擎天" className="h-10 object-contain" />
+            </div>
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">擎天智慧販賣機管理</h1>
           <p className="text-sm text-white/40">請登入您的帳號</p>

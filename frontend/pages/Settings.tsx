@@ -547,7 +547,9 @@ export const Settings: React.FC = () => {
             rel="noopener noreferrer"
             className="w-full bg-white/5 hover:bg-white/10 text-white py-4 rounded-xl border border-white/10 transition-all flex items-center gap-3 px-4 active:scale-[0.98]"
           >
-            <img src="/propsky-logo.png" alt="Propsky" className="h-8 object-contain" />
+            <div className="bg-white rounded-lg px-2 py-1">
+              <img src="/propsky-logo.png" alt="Propsky" className="h-6 object-contain" />
+            </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold">擎天有限公司</p>
               <p className="text-xs text-white/40">www.propskynet.com</p>
