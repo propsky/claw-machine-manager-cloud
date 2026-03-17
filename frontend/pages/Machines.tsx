@@ -478,7 +478,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
                     setControlLoading(true);
-                    restartMachine(parseInt(selectedMachine.cpu_id))
+                    restartMachine(selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
@@ -498,7 +498,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
                     setControlLoading(true);
-                    startMachine(parseInt(selectedMachine.cpu_id))
+                    startMachine(selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })

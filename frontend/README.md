@@ -93,6 +93,10 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 
 ## 版本資訊
 
+### v3.1.4 (2026-03-17)
+**修正**
+- 修正機台重啟/遠端投幣送出錯誤 ID 的問題：parseInt("8C4B1470EB1C") = 8，改為直接傳字串 cpu_id
+
 ### v3.1.3 (2026-03-17)
 **修正**
 - 機台控制改用 cpu_id，修正多日模式下送出錯誤機台 ID 導致重啟/遠端投幣失敗

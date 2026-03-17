@@ -266,14 +266,14 @@ export async function fetchWithdrawalRequests(params?: {
 
 // ==================== 機台控制 API ====================
 
-export async function restartMachine(machineId: number): Promise<{ message: string }> {
-  const url = getBaseUrl(`/api/claw-machines/${machineId}/restart`);
+export async function restartMachine(cpuId: string): Promise<{ message: string }> {
+  const url = getBaseUrl(`/api/claw-machines/${cpuId}/restart`);
   const response = await authFetch(url, { method: 'POST' });
   return response.json();
 }
 
-export async function startMachine(machineId: number, epays?: number): Promise<{ message: string }> {
-  const url = getBaseUrl(`/api/claw-machines/${machineId}/start${epays ? '?epays=' + epays : ''}`);
+export async function startMachine(cpuId: string, epays?: number): Promise<{ message: string }> {
+  const url = getBaseUrl(`/api/claw-machines/${cpuId}/start${epays ? '?epays=' + epays : ''}`);
   const response = await authFetch(url, { method: 'POST' });
   return response.json();
 }
