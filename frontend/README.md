@@ -79,8 +79,8 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 - [x] 機台詳情 Modal 介面
 - [x] 重啟按鈕 + 二次確認
 - [x] 遠端投幣按鈕 + 二次確認
-- [ ] 串接 `POST /api/claw-machines/{machine_id}/restart` 重啟 API
-- [ ] 串接 `POST /api/claw-machines/{machine_id}/start` 啟動/遠端投幣 API
+- [x] 串接 `POST /api/claw-machines/{machine_id}/restart` 重啟 API
+- [x] 串接 `POST /api/claw-machines/{machine_id}/start` 啟動/遠端投幣 API
 - [ ] 後台小卡管理需先設置 MQTT Token 和 Card ID
 
 ### Phase 5: PWA 支援
@@ -92,6 +92,10 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 ---
 
 ## 版本資訊
+
+### v3.1.2 (2026-03-17)
+**修正**
+- 新增 CF Function proxy，修正機台重啟與遠端投幣回傳 405 錯誤
 
 ### v3.1.0 (2026-03-06)
 **新功能**
