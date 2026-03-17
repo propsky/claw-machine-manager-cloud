@@ -93,6 +93,10 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 
 ## 版本資訊
 
+### v3.1.6 (2026-03-17)
+**修正**
+- 機台重啟/遠端投幣改用 happy-cardmachines API 的整數 id，正確對應後端控制 API
+
 ### v3.1.5 (2026-03-17)
 **修正**
 - 修正 machines/status CF Function 路徑錯誤（machines-status.js → machines/status.js）

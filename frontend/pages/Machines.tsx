@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
-import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
+import { fetchReadings, fetchPayments, fetchHappyCardmachines, restartMachine, startMachine } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
@@ -21,6 +21,7 @@ const DATE_FILTERS: { key: DateFilter; label: string }[] = [
 interface MachineViewItem {
   key: string;
   cpu_id: string;
+  machine_id: number | null;
   machine_name: string;
   store_name: string;
   store_id: number;
@@ -93,6 +94,7 @@ export const Machines: React.FC = () => {
   // 機台控制
   const [selectedMachine, setSelectedMachine] = useState<MachineViewItem | null>(null);
   const [controlLoading, setControlLoading] = useState(false);
+  const [machineCodeToId, setMachineCodeToId] = useState<Map<string, number>>(new Map());
 
   // 今日資料（機台狀態用），5 分鐘 cache
   const loadToday = useCallback(async (force = false) => {
@@ -161,6 +163,14 @@ export const Machines: React.FC = () => {
   }, [loadToday]);
 
   useEffect(() => {
+    fetchHappyCardmachines().then(data => {
+      const map = new Map<string, number>();
+      data.forEach(m => map.set(m.cpu_id, m.id));
+      setMachineCodeToId(map);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     loadFilterData(dateFilter);
   }, [dateFilter, loadFilterData]);
 
@@ -190,6 +200,7 @@ export const Machines: React.FC = () => {
       return (todayReadings?.items || []).map(item => ({
         key: item.cpu_id,
         cpu_id: item.cpu_id,
+        machine_id: machineCodeToId.get(item.cpu_id) ?? null,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,
@@ -208,6 +219,7 @@ export const Machines: React.FC = () => {
       return (filterReadings.items || []).map(item => ({
         key: item.cpu_id,
         cpu_id: item.cpu_id,
+        machine_id: machineCodeToId.get(item.cpu_id) ?? null,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,
@@ -235,6 +247,7 @@ export const Machines: React.FC = () => {
           machineMap.set(key, {
             key,
             cpu_id: item.happy_cpu_id,
+            machine_id: machineCodeToId.get(item.happy_cpu_id) ?? null,
             machine_name: item.machine_display_name || item.machine_name,
             store_name: item.store_name,
             store_id: storeNameToId.get(item.store_name) ?? 0,
@@ -251,7 +264,7 @@ export const Machines: React.FC = () => {
     }
 
     return [];
-  }, [dateFilter, todayReadings, filterReadings, filterPayments, todayStatusMap, storeNameToId]);
+  }, [dateFilter, todayReadings, filterReadings, filterPayments, todayStatusMap, storeNameToId, machineCodeToId]);
 
   // 場地過濾
   const storeMachines = selectedStoreId
@@ -478,7 +491,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
                     setControlLoading(true);
-                    restartMachine(selectedMachine.cpu_id)
+                    restartMachine(selectedMachine.machine_id!)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
@@ -498,7 +511,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
                     setControlLoading(true);
-                    startMachine(selectedMachine.cpu_id)
+                    startMachine(selectedMachine.machine_id!)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
