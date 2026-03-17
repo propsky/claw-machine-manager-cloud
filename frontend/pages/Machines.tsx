@@ -192,7 +192,7 @@ export const Machines: React.FC = () => {
       return (todayReadings?.items || []).map(item => ({
         key: item.cpu_id,
         cpu_id: item.cpu_id,
-        machine_id: item.id ?? null,
+        machine_id: item.clawmachine_id ?? null,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,
@@ -211,7 +211,7 @@ export const Machines: React.FC = () => {
       return (filterReadings.items || []).map(item => ({
         key: item.cpu_id,
         cpu_id: item.cpu_id,
-        machine_id: item.id ?? null,
+        machine_id: item.clawmachine_id ?? null,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,

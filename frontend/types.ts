@@ -33,7 +33,7 @@ export interface ReadingItem {
   store_id: number;
   machine_name: string;
   cpu_id: string;
-  id?: number; // 後端預計加入，對應 claw-machines 整數 id，用於遠端控制
+  clawmachine_id: number;
   epay_play_count: number;
   coin_play_count: number;
   gift_play_count: number;
