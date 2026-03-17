@@ -93,6 +93,10 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 
 ## 版本資訊
 
+### v3.1.7 (2026-03-17)
+**修正**
+- 暫停機台控制功能（按鈕 disabled），等待後端在 readings API 加入 id 欄位
+
 ### v3.1.6 (2026-03-17)
 **修正**
 - 機台重啟/遠端投幣改用 happy-cardmachines API 的整數 id，正確對應後端控制 API

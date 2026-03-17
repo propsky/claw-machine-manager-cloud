@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
-import { fetchReadings, fetchPayments, fetchHappyCardmachines, restartMachine, startMachine } from '../services/api';
+import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
@@ -94,7 +94,6 @@ export const Machines: React.FC = () => {
   // 機台控制
   const [selectedMachine, setSelectedMachine] = useState<MachineViewItem | null>(null);
   const [controlLoading, setControlLoading] = useState(false);
-  const [machineCodeToId, setMachineCodeToId] = useState<Map<string, number>>(new Map());
 
   // 今日資料（機台狀態用），5 分鐘 cache
   const loadToday = useCallback(async (force = false) => {
@@ -162,13 +161,6 @@ export const Machines: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadToday]);
 
-  useEffect(() => {
-    fetchHappyCardmachines().then(data => {
-      const map = new Map<string, number>();
-      data.forEach(m => map.set(m.cpu_id, m.id));
-      setMachineCodeToId(map);
-    }).catch(() => {});
-  }, []);
 
   useEffect(() => {
     loadFilterData(dateFilter);
@@ -200,7 +192,7 @@ export const Machines: React.FC = () => {
       return (todayReadings?.items || []).map(item => ({
         key: item.cpu_id,
         cpu_id: item.cpu_id,
-        machine_id: machineCodeToId.get(item.cpu_id) ?? null,
+        machine_id: item.id ?? null,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,
@@ -219,7 +211,7 @@ export const Machines: React.FC = () => {
       return (filterReadings.items || []).map(item => ({
         key: item.cpu_id,
         cpu_id: item.cpu_id,
-        machine_id: machineCodeToId.get(item.cpu_id) ?? null,
+        machine_id: item.id ?? null,
         machine_name: item.machine_name,
         store_name: item.store_name,
         store_id: item.store_id,
@@ -247,7 +239,7 @@ export const Machines: React.FC = () => {
           machineMap.set(key, {
             key,
             cpu_id: item.happy_cpu_id,
-            machine_id: machineCodeToId.get(item.happy_cpu_id) ?? null,
+            machine_id: null, // TODO: 後端在 readings 加入 id 後，多日模式再補上
             machine_name: item.machine_display_name || item.machine_name,
             store_name: item.store_name,
             store_id: storeNameToId.get(item.store_name) ?? 0,
@@ -264,7 +256,7 @@ export const Machines: React.FC = () => {
     }
 
     return [];
-  }, [dateFilter, todayReadings, filterReadings, filterPayments, todayStatusMap, storeNameToId, machineCodeToId]);
+  }, [dateFilter, todayReadings, filterReadings, filterPayments, todayStatusMap, storeNameToId]);
 
   // 場地過濾
   const storeMachines = selectedStoreId
@@ -501,7 +493,7 @@ export const Machines: React.FC = () => {
                       .finally(() => setControlLoading(false));
                   }
                 }}
-                disabled={controlLoading}
+                disabled={controlLoading || !selectedMachine.machine_id}
                 className="flex items-center justify-center gap-2 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-xl font-medium transition-colors disabled:opacity-50"
               >
                 <span className="material-symbols-outlined">restart_alt</span>
@@ -521,7 +513,7 @@ export const Machines: React.FC = () => {
                       .finally(() => setControlLoading(false));
                   }
                 }}
-                disabled={controlLoading}
+                disabled={controlLoading || !selectedMachine.machine_id}
                 className="flex items-center justify-center gap-2 py-3 bg-primary/20 hover:bg-primary/30 text-primary rounded-xl font-medium transition-colors disabled:opacity-50"
               >
                 <span className="material-symbols-outlined">savings</span>
