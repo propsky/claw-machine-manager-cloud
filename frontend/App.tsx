@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -17,6 +17,26 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 function App() {
+  // 偵測 QR Code 分享來源（?ref=USER_ID 在 hash 之前）
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (!ref) return;
+
+    fetch('/api/referrals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sharer_id: ref,
+        scanned_at: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+      }),
+    }).catch(() => {});
+
+    // 移除 ?ref= 避免重複送出
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  }, []);
+
   return (
     <Router>
       <Routes>

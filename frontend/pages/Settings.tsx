@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 
 declare const __APP_VERSION__: string;
 import { FavoriteBankAccount } from '../types';
@@ -76,7 +77,35 @@ export const Settings: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FavoriteBankAccount | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
-  
+  const [showInstall, setShowInstall] = useState(false);
+
+  // PWA 安裝相關
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+  const installPromptRef = useRef<any>(null);
+  const [canInstall, setCanInstall] = useState(false);
+  const appUrl = window.location.origin;
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      installPromptRef.current = e;
+      setCanInstall(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPromptRef.current) return;
+    installPromptRef.current.prompt();
+    const { outcome } = await installPromptRef.current.userChoice;
+    if (outcome === 'accepted') {
+      setCanInstall(false);
+      installPromptRef.current = null;
+    }
+  };
+
   // 隱藏開發功能：連點版本資訊 20 下解鎖提領金額顯示
   const [devTapCount, setDevTapCount] = useState(0);
   const handleVersionTap = () => {
@@ -115,6 +144,7 @@ export const Settings: React.FC = () => {
   // 載入銀行帳戶列表
   useEffect(() => {
     loadBankAccounts();
+    loadProfile();
   }, []);
 
   const loadBankAccounts = async () => {
@@ -501,6 +531,33 @@ export const Settings: React.FC = () => {
           </div>
         </section>
 
+        {/* 安裝 App Section */}
+        <section className="space-y-2">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">安裝 App</h3>
+          <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
+            <button
+              onClick={() => setShowInstall(true)}
+              className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="size-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary">install_mobile</span>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold">加到手機桌面</p>
+                  <p className="text-xs text-white/40">
+                    {isInStandaloneMode ? '已安裝為 App' : '掃碼或查看安裝說明'}
+                  </p>
+                </div>
+              </div>
+              {isInStandaloneMode
+                ? <span className="text-xs text-primary px-2 py-1 bg-primary/10 rounded-md">已安裝</span>
+                : <span className="material-symbols-outlined text-white/20">chevron_right</span>
+              }
+            </button>
+          </div>
+        </section>
+
         {/* About Section */}
         <section className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">關於</h3>
@@ -656,6 +713,102 @@ export const Settings: React.FC = () => {
                   </ul>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 安裝說明 Modal */}
+      {showInstall && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowInstall(false)}></div>
+          <div className="relative w-full max-w-md bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col">
+            <div className="flex h-1.5 w-full items-center justify-center py-4">
+              <div className="h-1.5 w-12 rounded-full bg-white/20"></div>
+            </div>
+            <div className="flex items-center justify-between px-6 pb-4">
+              <h2 className="text-lg font-bold">加到手機桌面</h2>
+              <button onClick={() => setShowInstall(false)}>
+                <span className="material-symbols-outlined text-white/40">close</span>
+              </button>
+            </div>
+
+            <div className="px-6 pb-8 space-y-5">
+              {/* 已安裝提示 */}
+              {isInStandaloneMode && (
+                <div className="flex items-center gap-3 bg-primary/10 border border-primary/30 rounded-xl p-4">
+                  <span className="material-symbols-outlined text-primary material-symbols-filled">check_circle</span>
+                  <p className="text-sm text-primary font-bold">App 已安裝在桌面</p>
+                </div>
+              )}
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-xs text-white/40">掃描 QR Code 在其他裝置開啟</p>
+                <div className="p-3 bg-white rounded-2xl">
+                  <QRCodeSVG
+                    value={profileData?.id ? `${appUrl}?ref=${profileData.id}` : appUrl}
+                    size={160}
+                    bgColor="#ffffff"
+                    fgColor="#121212"
+                    level="M"
+                  />
+                </div>
+                <p className="text-[11px] text-white/30 font-mono">
+                  {profileData?.id ? `${appUrl}?ref=${profileData.id}` : appUrl}
+                </p>
+              </div>
+
+              {/* Android 安裝按鈕 */}
+              {canInstall && (
+                <button
+                  onClick={handleInstallClick}
+                  className="w-full bg-primary text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined">install_mobile</span>
+                  立即安裝到桌面
+                </button>
+              )}
+
+              {/* iOS 安裝說明 */}
+              {isIOS && !isInStandaloneMode && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest">iPhone / iPad 安裝步驟</p>
+                  <div className="space-y-2">
+                    {[
+                      { icon: 'open_in_browser', text: '用 Safari 開啟此頁' },
+                      { icon: 'ios_share', text: '點下方分享按鈕（方塊＋箭頭）' },
+                      { icon: 'add_box', text: '選「加入主畫面」' },
+                      { icon: 'check_circle', text: '確認後 App 圖示出現在桌面' },
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
+                        <span className="material-symbols-outlined text-primary text-xl">{step.icon}</span>
+                        <span className="text-sm text-white/80">{step.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-white/30 text-center pt-1">※ 必須使用 Safari，Chrome 不支援 iOS 安裝</p>
+                </div>
+              )}
+
+              {/* 非 iOS 且無 install prompt 的說明 */}
+              {!isIOS && !canInstall && !isInStandaloneMode && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Android 安裝步驟</p>
+                  <div className="space-y-2">
+                    {[
+                      { icon: 'open_in_browser', text: '用 Chrome 開啟此頁' },
+                      { icon: 'more_vert', text: '點右上角選單（三個點）' },
+                      { icon: 'add_to_home_screen', text: '選「安裝應用程式」或「加到主畫面」' },
+                      { icon: 'check_circle', text: '確認後 App 圖示出現在桌面' },
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
+                        <span className="material-symbols-outlined text-primary text-xl">{step.icon}</span>
+                        <span className="text-sm text-white/80">{step.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
