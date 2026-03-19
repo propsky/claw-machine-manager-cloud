@@ -12,6 +12,14 @@ import { Toast, ToastType } from '../components/Toast';
 // 版本更新記錄
 const CHANGELOG = [
   {
+    version: '3.2.1',
+    date: '2026-03-19',
+    features: [
+      '修正機台頁與總覽頁數字顯示錯誤',
+      '新增即時抄表值篩選'
+    ]
+  },
+  {
     version: '3.1.1',
     date: '2026-03-13',
     features: [
