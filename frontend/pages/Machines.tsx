@@ -227,15 +227,17 @@ export const Machines: React.FC = () => {
     if (!range.isSingleDay && filterPayments) {
       const machineMap = new Map<string, MachineViewItem>();
       (filterPayments.items || []).forEach(item => {
-        // 修復：payments API 沒有 transaction_count，改用 total_revenue / PLAY_PRICE 計算遊玩次數
-        const playCount = item.total_revenue ? Math.floor(item.total_revenue / PLAY_PRICE) : 0;
+        // 修復：coin_amount 和 card_amount 是金額，需要除以 PLAY_PRICE 才能得到次數
+        const coinCount = item.coin_amount ? Math.floor(item.coin_amount / PLAY_PRICE) : 0;
+        const cardCount = item.card_amount ? Math.floor(item.card_amount / PLAY_PRICE) : 0;
+        const playCount = coinCount + cardCount;
         
         const key = item.happy_cpu_id || item.machine_id;
         if (machineMap.has(key)) {
           const m = machineMap.get(key)!;
           m.total_play_count += playCount;
-          m.coin_play_count += (item.coin_amount || 0);
-          m.epay_play_count += (item.card_amount || 0);
+          m.coin_play_count += coinCount;
+          m.epay_play_count += cardCount;
           m.gift_out_count += item.prize_count;
           m.revenue += item.total_revenue;
         } else {
@@ -247,8 +249,8 @@ export const Machines: React.FC = () => {
             store_name: item.store_name,
             store_id: storeNameToId.get(item.store_name) ?? 0,
             total_play_count: playCount,
-            coin_play_count: item.coin_amount || 0,
-            epay_play_count: item.card_amount || 0,
+            coin_play_count: coinCount,
+            epay_play_count: cardCount,
             gift_out_count: item.prize_count,
             revenue: item.total_revenue,
             last_reading_time: todayStatusMap.get(key) ?? null,
