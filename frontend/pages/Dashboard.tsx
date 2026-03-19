@@ -211,16 +211,7 @@ export const Dashboard: React.FC = () => {
         setActivityData(activity);
       }
 
-      // ★ 用 ref 讀取最新的 filter，避免閉包問題
-      // 只有在「今日」篩選時，才用即時 readings 同步營收
-      if (selectedFilterRef.current === 'today') {
-        const summary = readings.summary;
-        setRevenueData({
-          coin: summary ? summary.total_coin * PLAY_PRICE : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
-          epay: summary ? summary.total_epay * PLAY_PRICE : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
-        });
-      }
-      // ★ 其他篩選（昨日、本週、本月）不覆蓋營收，保留 loadRevenueData 的結果
+      // 營收數據由 loadRevenueData 負責（payments API），這裡只更新場地健康狀態
     } catch (error) {
       console.error('載入數據失敗:', error);
       // API 失敗時，不清除既有數據
@@ -246,26 +237,14 @@ export const Dashboard: React.FC = () => {
     setRevenueLoading(true);
 
     try {
-      if (range.isSingleDay) {
-        // 單日：用 readings API
-        const readings = await fetchReadings(range.start, selectedStoreId || undefined);
-        const summary = readings.summary;
-        setRevenueData({
-          coin: summary ? summary.total_coin * PLAY_PRICE : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
-          epay: summary ? summary.total_epay * PLAY_PRICE : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
-        });
-      } else {
-        // 多日：用 payments API（summary 已含 coin_amount / card_amount）
-        const payments = await fetchPayments(range.start, range.end, selectedStoreId || undefined);
-        const s = payments.summary;
-        setRevenueData({
-          coin: s ? s.total_coin_amount : 0,
-          epay: s ? s.total_card_amount : 0,
-        });
-      }
+      const payments = await fetchPayments(range.start, range.end, selectedStoreId || undefined);
+      const s = payments.summary;
+      setRevenueData({
+        coin: s ? s.total_coin_amount : 0,
+        epay: s ? s.total_card_amount : 0,
+      });
     } catch (error) {
       console.error('載入營收失敗:', error);
-      // API 失敗時，不清除既有數據
     } finally {
       setRevenueLoading(false);
     }
@@ -289,7 +268,7 @@ export const Dashboard: React.FC = () => {
     const totalRevenue = s ? ((s.total_coin_amount || 0) + (s.total_card_amount || 0)) : 0;
     const coinRevenue = s?.total_coin_amount || 0;
     const cardRevenue = s?.total_card_amount || 0;
-    const totalPlays = s?.total_transaction_count || 0;
+    const totalPlays = s ? (Math.round((s.total_coin_amount || 0) / PLAY_PRICE) + (s.total_card_play_count || 0)) : 0;
     const totalPrizeCount = s?.total_prize_count || 0;
     const avgPayout = totalPrizeCount > 0 ? Math.round(totalRevenue / totalPrizeCount) : 0;
     const avgDailyRevenue = Math.round(totalRevenue / FILTER_DAYS[revenueFilter]);
@@ -300,7 +279,7 @@ export const Dashboard: React.FC = () => {
       const key = item.machine_id || item.machine_name;
       const name = item.machine_display_name || item.machine_name;
       const store_name = item.store_name || '';
-      const plays = item.transaction_count || 0;
+      const plays = Math.round((item.coin_amount || 0) / PLAY_PRICE) + (item.card_play_count || 0);
       const revenue = item.total_revenue || 0;
       const gifts = item.prize_count || 0;
       if (machineMap.has(key)) {

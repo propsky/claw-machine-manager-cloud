@@ -7,7 +7,7 @@ const PLAY_PRICE = 10;
 const MACHINES_CACHE_TTL = 5 * 60 * 1000;
 let todayCache: { data: ReadingsResponse; cachedAt: number } | null = null;
 
-type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month';
+type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'realtime';
 type FilterStatus = 'all' | 'online' | 'offline';
 
 const DATE_FILTERS: { key: DateFilter; label: string }[] = [
@@ -16,6 +16,7 @@ const DATE_FILTERS: { key: DateFilter; label: string }[] = [
   { key: 'seven_days', label: '7天內' },
   { key: 'week', label: '本週' },
   { key: 'month', label: '本月' },
+  { key: 'realtime', label: '即時抄表' },
 ];
 
 interface MachineViewItem {
@@ -26,8 +27,8 @@ interface MachineViewItem {
   store_name: string;
   store_id: number;
   total_play_count: number;
-  coin_play_count: number;
-  epay_play_count: number;
+  coin_amount: number;
+  card_amount: number;
   gift_out_count: number;
   revenue: number;
   last_reading_time: string | null;
@@ -82,7 +83,6 @@ function formatTime(isoString: string): string {
 
 export const Machines: React.FC = () => {
   const [todayReadings, setTodayReadings] = useState<ReadingsResponse | null>(null);
-  const [filterReadings, setFilterReadings] = useState<ReadingsResponse | null>(null);
   const [filterPayments, setFilterPayments] = useState<PaymentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
@@ -114,40 +114,29 @@ export const Machines: React.FC = () => {
     }
   }, []);
 
-  // 篩選期間資料
+  // 篩選期間資料（所有日期都用 payments API，realtime 直接用 todayReadings）
   const loadFilterData = useCallback(async (filter: DateFilter) => {
-    if (filter === 'today') {
-      setFilterReadings(null);
-      setFilterPayments(null);
-      return;
-    }
+    if (filter === 'realtime') return;
     const range = getDateRange(filter);
     setFilterLoading(true);
-    setFilterReadings(null);
     setFilterPayments(null);
     try {
-      if (range.isSingleDay) {
-        const data = await fetchReadings(range.start);
-        setFilterReadings(data);
-      } else {
-        // 取第一頁確認總頁數，再分批取完所有頁（每批 3 頁）
-        const first = await fetchPayments(range.start, range.end, undefined, 1, 100);
-        const totalPages = first.total_pages || 1;
-        let allItems = [...first.items];
+      const first = await fetchPayments(range.start, range.end, undefined, 1, 100);
+      const totalPages = first.total_pages || 1;
+      let allItems = [...first.items];
 
-        for (let batchStart = 2; batchStart <= totalPages; batchStart += 3) {
-          const batch = Array.from(
-            { length: Math.min(3, totalPages - batchStart + 1) },
-            (_, i) => batchStart + i
-          );
-          const pages = await Promise.all(
-            batch.map(p => fetchPayments(range.start, range.end, undefined, p, 100))
-          );
-          pages.forEach(p => { allItems = allItems.concat(p.items); });
-        }
-
-        setFilterPayments({ ...first, items: allItems });
+      for (let batchStart = 2; batchStart <= totalPages; batchStart += 3) {
+        const batch = Array.from(
+          { length: Math.min(3, totalPages - batchStart + 1) },
+          (_, i) => batchStart + i
+        );
+        const pages = await Promise.all(
+          batch.map(p => fetchPayments(range.start, range.end, undefined, p, 100))
+        );
+        pages.forEach(p => { allItems = allItems.concat(p.items); });
       }
+
+      setFilterPayments({ ...first, items: allItems });
     } catch (err) {
       console.error('載入篩選資料失敗:', err);
     } finally {
@@ -188,7 +177,8 @@ export const Machines: React.FC = () => {
 
   // 統一機台顯示資料
   const allMachineItems = useMemo((): MachineViewItem[] => {
-    if (dateFilter === 'today') {
+    // 即時抄表：直接用 todayReadings 的 counter 值
+    if (dateFilter === 'realtime') {
       return (todayReadings?.items || []).map(item => ({
         key: item.cpu_id,
         cpu_id: item.cpu_id,
@@ -197,66 +187,46 @@ export const Machines: React.FC = () => {
         store_name: item.store_name,
         store_id: item.store_id,
         total_play_count: item.total_play_count,
-        coin_play_count: item.coin_play_count,
-        epay_play_count: item.epay_play_count,
+        coin_amount: item.coin_play_count * PLAY_PRICE,
+        card_amount: item.epay_play_count * PLAY_PRICE,
         gift_out_count: item.gift_out_count,
         revenue: item.total_play_count * PLAY_PRICE,
         last_reading_time: item.last_reading_time,
       }));
     }
 
-    const range = getDateRange(dateFilter);
+    if (!filterPayments) return [];
 
-    if (range.isSingleDay && filterReadings) {
-      return (filterReadings.items || []).map(item => ({
-        key: item.cpu_id,
-        cpu_id: item.cpu_id,
-        machine_id: item.clawmachine_id ?? null,
-        machine_name: item.machine_name,
-        store_name: item.store_name,
-        store_id: item.store_id,
-        total_play_count: item.total_play_count,
-        coin_play_count: item.coin_play_count,
-        epay_play_count: item.epay_play_count,
-        gift_out_count: item.gift_out_count,
-        revenue: item.total_play_count * PLAY_PRICE,
-        last_reading_time: todayStatusMap.get(item.cpu_id) ?? null,
-      }));
-    }
-
-    if (!range.isSingleDay && filterPayments) {
-      const machineMap = new Map<string, MachineViewItem>();
-      (filterPayments.items || []).forEach(item => {
-        const key = item.happy_cpu_id || item.machine_id;
-        if (machineMap.has(key)) {
-          const m = machineMap.get(key)!;
-          m.total_play_count += item.transaction_count;
-          m.coin_play_count += item.transaction_count - item.card_play_count;
-          m.epay_play_count += item.card_play_count;
-          m.gift_out_count += item.prize_count;
-          m.revenue += item.total_revenue;
-        } else {
-          machineMap.set(key, {
-            key,
-            cpu_id: item.happy_cpu_id,
-            machine_id: null, // TODO: 後端在 readings 加入 id 後，多日模式再補上
-            machine_name: item.machine_display_name || item.machine_name,
-            store_name: item.store_name,
-            store_id: storeNameToId.get(item.store_name) ?? 0,
-            total_play_count: item.transaction_count,
-            coin_play_count: item.transaction_count - item.card_play_count,
-            epay_play_count: item.card_play_count,
-            gift_out_count: item.prize_count,
-            revenue: item.total_revenue,
-            last_reading_time: todayStatusMap.get(key) ?? null,
-          });
-        }
-      });
-      return Array.from(machineMap.values());
-    }
-
-    return [];
-  }, [dateFilter, todayReadings, filterReadings, filterPayments, todayStatusMap, storeNameToId]);
+    const machineMap = new Map<string, MachineViewItem>();
+    (filterPayments.items || []).forEach(item => {
+      const key = item.happy_cpu_id || item.machine_id;
+      const coinPlayCount = Math.round(item.coin_amount / PLAY_PRICE);
+      if (machineMap.has(key)) {
+        const m = machineMap.get(key)!;
+        m.total_play_count += coinPlayCount + item.card_play_count;
+        m.coin_amount += item.coin_amount;
+        m.card_amount += item.card_amount;
+        m.gift_out_count += item.prize_count;
+        m.revenue += item.total_revenue;
+      } else {
+        machineMap.set(key, {
+          key,
+          cpu_id: item.happy_cpu_id,
+          machine_id: null,
+          machine_name: item.machine_display_name || item.machine_name,
+          store_name: item.store_name,
+          store_id: storeNameToId.get(item.store_name) ?? 0,
+          total_play_count: coinPlayCount + item.card_play_count,
+          coin_amount: item.coin_amount,
+          card_amount: item.card_amount,
+          gift_out_count: item.prize_count,
+          revenue: item.total_revenue,
+          last_reading_time: todayStatusMap.get(key) ?? null,
+        });
+      }
+    });
+    return Array.from(machineMap.values());
+  }, [dateFilter, todayReadings, filterPayments, todayStatusMap, storeNameToId]);
 
   // 場地過濾
   const storeMachines = selectedStoreId
@@ -410,13 +380,13 @@ export const Machines: React.FC = () => {
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-500 font-medium mb-0.5">投幣</span>
                   <span className="text-base font-bold tracking-tight text-white">
-                    {machine.coin_play_count.toLocaleString()}
+                    ${machine.coin_amount.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-500 font-medium mb-0.5">電支</span>
                   <span className="text-base font-bold tracking-tight text-primary">
-                    {machine.epay_play_count.toLocaleString()}
+                    ${machine.card_amount.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
