@@ -227,13 +227,13 @@ export const Machines: React.FC = () => {
     if (!range.isSingleDay && filterPayments) {
       const machineMap = new Map<string, MachineViewItem>();
       (filterPayments.items || []).forEach(item => {
-        // 修復：payments API 沒有 transaction_count，改用 coin_amount / PLAY_PRICE 計算遊玩次數
-        const playCount = (item.coin_amount || 0) + (item.card_amount || 0);
+        // 修復：payments API 沒有 transaction_count，改用 total_revenue / PLAY_PRICE 計算遊玩次數
+        const playCount = item.total_revenue ? Math.floor(item.total_revenue / PLAY_PRICE) : 0;
         
         const key = item.happy_cpu_id || item.machine_id;
         if (machineMap.has(key)) {
           const m = machineMap.get(key)!;
-          m.total_play_count += Math.floor(playCount / PLAY_PRICE);
+          m.total_play_count += playCount;
           m.coin_play_count += (item.coin_amount || 0);
           m.epay_play_count += (item.card_amount || 0);
           m.gift_out_count += item.prize_count;
@@ -246,7 +246,7 @@ export const Machines: React.FC = () => {
             machine_name: item.machine_display_name || item.machine_name,
             store_name: item.store_name,
             store_id: storeNameToId.get(item.store_name) ?? 0,
-            total_play_count: Math.floor(playCount / PLAY_PRICE),
+            total_play_count: playCount,
             coin_play_count: item.coin_amount || 0,
             epay_play_count: item.card_amount || 0,
             gift_out_count: item.prize_count,
