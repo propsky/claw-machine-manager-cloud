@@ -231,8 +231,9 @@ export const Machines: React.FC = () => {
         if (machineMap.has(key)) {
           const m = machineMap.get(key)!;
           m.total_play_count += item.transaction_count;
-          m.coin_play_count += item.transaction_count - item.card_play_count;
-          m.epay_play_count += item.card_play_count;
+          // 修復：使用 API 回傳的 coin_amount 和 card_amount，而非自行計算
+          m.coin_play_count += (item.coin_amount || 0);
+          m.epay_play_count += (item.card_amount || 0);
           m.gift_out_count += item.prize_count;
           m.revenue += item.total_revenue;
         } else {
@@ -244,8 +245,9 @@ export const Machines: React.FC = () => {
             store_name: item.store_name,
             store_id: storeNameToId.get(item.store_name) ?? 0,
             total_play_count: item.transaction_count,
-            coin_play_count: item.transaction_count - item.card_play_count,
-            epay_play_count: item.card_play_count,
+            // 修復：使用 API 回傳的 coin_amount 和 card_amount
+            coin_play_count: item.coin_amount || 0,
+            epay_play_count: item.card_amount || 0,
             gift_out_count: item.prize_count,
             revenue: item.total_revenue,
             last_reading_time: todayStatusMap.get(key) ?? null,
