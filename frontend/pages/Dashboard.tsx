@@ -5,7 +5,7 @@ import { StoreSelector } from '../components/StoreSelector';
 
 const PLAY_PRICE = 10;
 
-type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month';
+type DateFilter = 'today' | 'yesterday' | 'day_before_yesterday' | 'three_days_ago' | 'seven_days' | 'week' | 'month';
 
 function getMachineStatus(machine: ReadingItem): MachineStatus {
   const lastTime = new Date(machine.last_reading_time);
@@ -31,6 +31,18 @@ function getDateRange(filter: DateFilter): { start: string; end: string; isSingl
       y.setDate(y.getDate() - 1);
       const ys = formatDate(y);
       return { start: ys, end: ys, isSingleDay: true };
+    }
+    case 'day_before_yesterday': {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 2);
+      const ds = formatDate(d);
+      return { start: ds, end: ds, isSingleDay: true };
+    }
+    case 'three_days_ago': {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 3);
+      const ds = formatDate(d);
+      return { start: ds, end: ds, isSingleDay: true };
     }
     case 'seven_days': {
       const d = new Date(now);
@@ -82,6 +94,8 @@ function getRevenueDateRange(filter: RevenueFilter): { start: string; end: strin
 const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'today', label: '今日' },
   { key: 'yesterday', label: '昨日' },
+  { key: 'day_before_yesterday', label: '前日' },
+  { key: 'three_days_ago', label: '大前日' },
   { key: 'seven_days', label: '7天內' },
   { key: 'week', label: '本週' },
   { key: 'month', label: '本月' },
@@ -368,21 +382,40 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Date Filter */}
-      <div className="flex gap-2 px-4 pt-4 pb-1 overflow-x-auto hide-scrollbar">
-        {FILTER_LABELS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setSelectedFilter(f.key)}
-            className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
-              selectedFilter === f.key
-                ? 'bg-primary text-background-dark'
-                : 'bg-white/10 text-slate-400 dark:text-zinc-500 hover:bg-white/15'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Date Filter - 兩行排列 */}
+      <div className="px-4 pt-4 pb-1">
+        {/* 第一行：今日 ~ 7天內 */}
+        <div className="flex gap-2 mb-2">
+          {FILTER_LABELS.slice(0, 5).map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setSelectedFilter(f.key)}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                selectedFilter === f.key
+                  ? 'bg-primary text-background-dark'
+                  : 'bg-white/10 text-white/60 hover:bg-white/15'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {/* 第二行：7天內 ~ 本月 */}
+        <div className="flex gap-2">
+          {FILTER_LABELS.slice(4).map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setSelectedFilter(f.key)}
+              className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                selectedFilter === f.key
+                  ? 'bg-primary text-background-dark'
+                  : 'bg-white/10 text-white/60 hover:bg-white/15'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col items-center pt-4 pb-4">
