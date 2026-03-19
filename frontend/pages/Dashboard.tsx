@@ -229,9 +229,10 @@ export const Dashboard: React.FC = () => {
       // 只有在「今日」篩選時，才用即時 readings 同步營收
       if (selectedFilterRef.current === 'today') {
         const summary = readings.summary;
+        // 修復：total_coin 和 total_epay 已經是金額，不需要再 * PLAY_PRICE
         setRevenueData({
-          coin: summary ? summary.total_coin * PLAY_PRICE : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
-          epay: summary ? summary.total_epay * PLAY_PRICE : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
+          coin: summary ? summary.total_coin : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
+          epay: summary ? summary.total_epay : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
         });
       }
       // ★ 其他篩選（昨日、本週、本月）不覆蓋營收，保留 loadRevenueData 的結果
@@ -264,9 +265,10 @@ export const Dashboard: React.FC = () => {
         // 單日：用 readings API
         const readings = await fetchReadings(range.start, selectedStoreId || undefined);
         const summary = readings.summary;
+        // 修復：total_coin 和 total_epay 已經是金額，不需要再 * PLAY_PRICE
         setRevenueData({
-          coin: summary ? summary.total_coin * PLAY_PRICE : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
-          epay: summary ? summary.total_epay * PLAY_PRICE : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
+          coin: summary ? summary.total_coin : readings.items.reduce((s, m) => s + m.coin_play_count, 0) * PLAY_PRICE,
+          epay: summary ? summary.total_epay : readings.items.reduce((s, m) => s + m.epay_play_count, 0) * PLAY_PRICE,
         });
       } else {
         // 多日：用 payments API（summary 已含 coin_amount / card_amount）
