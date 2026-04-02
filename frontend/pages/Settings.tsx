@@ -12,6 +12,14 @@ import { Toast, ToastType } from '../components/Toast';
 // 版本更新記錄
 const CHANGELOG = [
   {
+    version: '3.2.2',
+    date: '2026-04-02',
+    features: [
+      '統一機台頁日期篩選改用 payments API',
+      '修正即時抄表為唯一使用 readings 的情境'
+    ]
+  },
+  {
     version: '3.2.1',
     date: '2026-03-19',
     features: [
