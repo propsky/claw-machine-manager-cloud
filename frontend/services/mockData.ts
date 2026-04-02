@@ -34,8 +34,8 @@ export const MOCK_USER: UserProfile = {
 };
 
 export const MOCK_STORES: StoreOption[] = [
-  { id: 1, name: '示範店 A（農安店）' },
-  { id: 2, name: '示範店 B（光復店）' },
+  { id: 1, name: '大安店' },
+  { id: 2, name: '信義店' },
 ];
 
 export const MOCK_READINGS: ReadingsResponse = {
@@ -43,7 +43,7 @@ export const MOCK_READINGS: ReadingsResponse = {
   total_machines: 6,
   items: [
     {
-      store_name: '示範店 A（農安店）',
+      store_name: '大安店',
       store_id: 1,
       machine_name: '01號機',
       cpu_id: 'AA000000001',
@@ -58,7 +58,7 @@ export const MOCK_READINGS: ReadingsResponse = {
       last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:01:00`,
     },
     {
-      store_name: '示範店 A（農安店）',
+      store_name: '大安店',
       store_id: 1,
       machine_name: '02號機',
       cpu_id: 'AA000000002',
@@ -73,7 +73,7 @@ export const MOCK_READINGS: ReadingsResponse = {
       last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:02:00`,
     },
     {
-      store_name: '示範店 A（農安店）',
+      store_name: '大安店',
       store_id: 1,
       machine_name: '03號機',
       cpu_id: 'AA000000003',
@@ -88,7 +88,7 @@ export const MOCK_READINGS: ReadingsResponse = {
       last_reading_time: `${daysAgo(1)}T23:00:00`,
     },
     {
-      store_name: '示範店 B（光復店）',
+      store_name: '信義店',
       store_id: 2,
       machine_name: '01號機',
       cpu_id: 'BB000000001',
@@ -103,7 +103,7 @@ export const MOCK_READINGS: ReadingsResponse = {
       last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:05:00`,
     },
     {
-      store_name: '示範店 B（光復店）',
+      store_name: '信義店',
       store_id: 2,
       machine_name: '02號機',
       cpu_id: 'BB000000002',
@@ -118,7 +118,7 @@ export const MOCK_READINGS: ReadingsResponse = {
       last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:06:00`,
     },
     {
-      store_name: '示範店 B（光復店）',
+      store_name: '信義店',
       store_id: 2,
       machine_name: '03號機',
       cpu_id: 'BB000000003',
@@ -150,12 +150,12 @@ const makePaymentItems = (startDate: string, endDate: string) => {
   const end = new Date(endDate);
   const items = [];
   const machines = [
-    { name: '01號機', store: '示範店 A（農安店）', cpu: 'AA000000001', coin: 380, card: 120, prize: 12 },
-    { name: '02號機', store: '示範店 A（農安店）', cpu: 'AA000000002', coin: 210, card: 50,  prize: 6  },
-    { name: '03號機', store: '示範店 A（農安店）', cpu: 'AA000000003', coin: 60,  card: 0,   prize: 1  },
-    { name: '01號機', store: '示範店 B（光復店）', cpu: 'BB000000001', coin: 550, card: 200, prize: 18 },
-    { name: '02號機', store: '示範店 B（光復店）', cpu: 'BB000000002', coin: 420, card: 80,  prize: 14 },
-    { name: '03號機', store: '示範店 B（光復店）', cpu: 'BB000000003', coin: 180, card: 30,  prize: 5  },
+    { name: '01號機', store: '大安店', cpu: 'AA000000001', coin: 380, card: 120, prize: 12 },
+    { name: '02號機', store: '大安店', cpu: 'AA000000002', coin: 210, card: 50,  prize: 6  },
+    { name: '03號機', store: '大安店', cpu: 'AA000000003', coin: 60,  card: 0,   prize: 1  },
+    { name: '01號機', store: '信義店', cpu: 'BB000000001', coin: 550, card: 200, prize: 18 },
+    { name: '02號機', store: '信義店', cpu: 'BB000000002', coin: 420, card: 80,  prize: 14 },
+    { name: '03號機', store: '信義店', cpu: 'BB000000003', coin: 180, card: 30,  prize: 5  },
   ];
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
