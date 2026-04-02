@@ -33,6 +33,7 @@ export interface ReadingItem {
   store_id: number;
   machine_name: string;
   cpu_id: string;
+  clawmachine_id: number;
   epay_play_count: number;
   coin_play_count: number;
   gift_play_count: number;
@@ -102,6 +103,9 @@ export interface ActivityItem {
 export interface ActivityResponse {
   items: ActivityItem[];
   total_count: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
 }
 
 // GET /api/store-app/payments

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#f2d00d"/>
+  <!-- Claw machine body -->
+  <!-- Top beam -->
+  <rect x="96" y="100" width="320" height="32" rx="16" fill="#1a1a1a"/>
+  <!-- Left arm -->
+  <rect x="112" y="132" width="24" height="100" rx="8" fill="#1a1a1a"/>
+  <!-- Right arm -->
+  <rect x="376" y="132" width="24" height="100" rx="8" fill="#1a1a1a"/>
+  <!-- Claw wire -->
+  <rect x="248" y="132" width="16" height="90" rx="4" fill="#333"/>
+  <!-- Claw center ring -->
+  <circle cx="256" cy="230" r="16" fill="#1a1a1a"/>
+  <!-- Claw left prong -->
+  <path d="M248 238 Q220 270 215 310 Q212 330 225 335 Q238 340 245 315 L256 290" fill="#1a1a1a"/>
+  <!-- Claw right prong -->
+  <path d="M264 238 Q292 270 297 310 Q300 330 287 335 Q274 340 267 315 L256 290" fill="#1a1a1a"/>
+  <!-- Claw center prong -->
+  <path d="M250 242 L256 290 L262 242" fill="#333"/>
+  <!-- Machine base -->
+  <rect x="80" y="370" width="352" height="60" rx="20" fill="#1a1a1a"/>
+  <!-- Coin slot -->
+  <rect x="220" y="390" width="72" height="10" rx="5" fill="#f2d00d"/>
+  <!-- Legs -->
+  <rect x="120" y="420" width="24" height="50" rx="8" fill="#1a1a1a"/>
+  <rect x="368" y="420" width="24" height="50" rx="8" fill="#1a1a1a"/>
+</svg>

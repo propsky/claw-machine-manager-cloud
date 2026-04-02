@@ -80,32 +80,51 @@ export async function updateUserProfile(data: {
 
 // ==================== 舊的 API 函數 ====================
 
-export async function fetchReadings(date: string): Promise<ReadingsResponse> {
-  const url = getBaseUrl(`/api/store-app/readings?date=${date}`);
+export async function fetchReadings(date: string, storeId?: number): Promise<ReadingsResponse> {
+  const params = new URLSearchParams({ date });
+  if (storeId) params.set('store_id', String(storeId));
+  const url = getBaseUrl(`/api/store-app/readings?${params.toString()}`);
   const response = await authFetch(url);
   return response.json();
 }
 
-export async function fetchMachinesStatus(): Promise<MachinesStatusResponse> {
-  const url = getBaseUrl('/api/store-app/machines/status');
+export async function fetchMachinesStatus(storeId?: number): Promise<MachinesStatusResponse> {
+  const params = new URLSearchParams();
+  if (storeId) params.set('store_id', String(storeId));
+  const url = getBaseUrl(`/api/store-app/machines/status?${params.toString()}`);
   const response = await authFetch(url);
   return response.json();
 }
 
-export async function fetchBalance(): Promise<BalanceResponse> {
-  const url = getBaseUrl('/api/store-app/balance');
+export async function fetchBalance(storeId?: number): Promise<BalanceResponse> {
+  const params = new URLSearchParams();
+  if (storeId) params.set('store_id', String(storeId));
+  const url = getBaseUrl(`/api/store-app/balance?${params.toString()}`);
   const response = await authFetch(url);
   return response.json();
 }
 
-export async function fetchActivity(): Promise<ActivityResponse> {
-  const url = getBaseUrl('/api/store-app/activity');
+export async function fetchActivity(
+  storeId?: number,
+  startDate?: string,
+  endDate?: string,
+  page?: number,
+  pageSize?: number
+): Promise<ActivityResponse> {
+  const params = new URLSearchParams();
+  if (storeId) params.set('store_id', String(storeId));
+  if (startDate) params.set('start_date', startDate);
+  if (endDate) params.set('end_date', endDate);
+  if (page) params.set('page', String(page));
+  if (pageSize) params.set('page_size', String(pageSize));
+  const url = getBaseUrl(`/api/store-app/activity?${params.toString()}`);
   const response = await authFetch(url);
   return response.json();
 }
 
-export async function fetchPayments(startDate: string, endDate: string, page?: number, pageSize?: number): Promise<PaymentsResponse> {
+export async function fetchPayments(startDate: string, endDate: string, storeId?: number, page?: number, pageSize?: number): Promise<PaymentsResponse> {
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  if (storeId) params.set('store_id', String(storeId));
   if (page !== undefined) params.set('page', String(page));
   if (pageSize !== undefined) params.set('page_size', String(pageSize));
   const url = getBaseUrl(`/api/store-app/payments?${params.toString()}`);
@@ -114,6 +133,18 @@ export async function fetchPayments(startDate: string, endDate: string, page?: n
 }
 
 // ==================== SmartPay 機台 API ====================
+
+// 場地選單
+export interface StoreOption {
+  id: number;
+  name: string;
+}
+
+export async function fetchStores(): Promise<StoreOption[]> {
+  const url = getBaseUrl('/api/stores/options');
+  const response = await authFetch(url);
+  return response.json();
+}
 
 const SMARTPAY_API_KEY = import.meta.env.VITE_SMARTPAY_API_KEY || '';
 
@@ -230,5 +261,32 @@ export async function fetchWithdrawalRequests(params?: {
   const queryString = query.toString();
   const url = getBaseUrl(`/api/withdrawal/my-requests${queryString ? '?' + queryString : ''}`);
   const response = await authFetch(url);
+  return response.json();
+}
+
+// ==================== Happy 卡機 API ====================
+
+export interface HappyCardmachine {
+  id: number;
+  cpu_id: string;
+}
+
+export async function fetchHappyCardmachines(): Promise<HappyCardmachine[]> {
+  const url = getBaseUrl('/api/happy-cardmachines/');
+  const response = await authFetch(url);
+  return response.json();
+}
+
+// ==================== 機台控制 API ====================
+
+export async function restartMachine(machineId: number): Promise<{ message: string }> {
+  const url = getBaseUrl(`/api/claw-machines/${machineId}/restart`);
+  const response = await authFetch(url, { method: 'POST' });
+  return response.json();
+}
+
+export async function startMachine(machineId: number, epays?: number): Promise<{ message: string }> {
+  const url = getBaseUrl(`/api/claw-machines/${machineId}/start${epays ? '?epays=' + epays : ''}`);
+  const response = await authFetch(url, { method: 'POST' });
   return response.json();
 }

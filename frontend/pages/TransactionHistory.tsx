@@ -1,56 +1,60 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DateRangeSheet } from '../components/DateRangeSheet';
 import { fetchActivity } from '../services/api';
 import type { ActivityItem } from '../types';
 
-type FilterType = 'all' | 'custom';
-
-function formatDateRange(start: string, end: string): string {
-  return `${start} - ${end}`;
+function formatDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export const TransactionHistory: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
-  const [customRange, setCustomRange] = useState<{ start: string; end: string } | null>(null);
-  const [isDateSheetOpen, setIsDateSheetOpen] = useState(false);
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 篩選狀態
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  
+  // 分頁狀態
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchActivity();
+      const data = await fetchActivity(
+        undefined, // storeId
+        startDate || undefined,
+        endDate || undefined,
+        page,
+        pageSize
+      );
       setItems(data.items || []);
+      setTotalCount(data.total_count || 0);
+      setTotalPages(data.total_pages || 1);
     } catch {
       // silent
     } finally {
       setLoading(false);
     }
-  }
+  }, [startDate, endDate, page, pageSize]);
 
-  const filteredItems = selectedFilter === 'custom' && customRange
-    ? items.filter(item => {
-        const d = item.date;
-        return d >= customRange.start && d <= customRange.end;
-      })
-    : items;
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const filters: { key: FilterType; label: string }[] = [
-    { key: 'all', label: '全部' },
-    { key: 'custom', label: '自訂範圍' },
-  ];
-
-  const handleCustomConfirm = (start: string, end: string) => {
-    setCustomRange({ start, end });
-    setSelectedFilter('custom');
-    setIsDateSheetOpen(false);
+  // 清除篩選
+  const clearFilter = () => {
+    setStartDate('');
+    setEndDate('');
+    setPage(1);
   };
+
+  // 是否有篩選
+  const hasFilter = startDate || endDate;
 
   return (
     <div className="min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-sans">
@@ -66,68 +70,64 @@ export const TransactionHistory: React.FC = () => {
         <div className="size-10"></div>
       </header>
 
-      {/* Sticky Date Filter */}
-      <div className="sticky top-[52px] z-20 bg-background-light/80 dark:bg-background-dark/80 ios-blur px-4 py-3 border-b border-slate-200 dark:border-white/10">
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar max-w-md mx-auto">
-          {filters.map((f) => (
+      {/* Date Filter */}
+      <div className="px-4 py-3 bg-surface-dark border-b border-white/5">
+        <div className="flex gap-2 items-center">
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+            className="flex-1 px-3 py-2 bg-white/10 rounded-lg text-white text-sm border-none outline-none"
+          />
+          <span className="text-white/40">~</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+            className="flex-1 px-3 py-2 bg-white/10 rounded-lg text-white text-sm border-none outline-none"
+          />
+          {hasFilter && (
             <button
-              key={f.key}
-              onClick={() => {
-                if (f.key === 'custom') {
-                  setIsDateSheetOpen(true);
-                } else {
-                  setSelectedFilter(f.key);
-                }
-              }}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                selectedFilter === f.key
-                  ? 'bg-primary text-background-dark'
-                  : 'bg-white/10 text-white/60 hover:bg-white/15'
-              }`}
+              onClick={clearFilter}
+              className="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm"
             >
-              {f.key === 'custom' && (
-                <span className="material-symbols-outlined text-[16px]">calendar_month</span>
-              )}
-              {f.label}
+              清除
             </button>
-          ))}
+          )}
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-4 py-4 max-w-md mx-auto w-full">
-        {selectedFilter === 'custom' && customRange && (
-          <p className="text-xs text-white/40 mb-4 px-1">
-            顯示 {formatDateRange(customRange.start, customRange.end)} 的紀錄
-          </p>
-        )}
+      {/* Summary */}
+      <div className="px-4 py-2">
+        <p className="text-xs text-white/40">
+          {hasFilter 
+            ? `${startDate || '開始'} ~ ${endDate || '結束'}`
+            : '全部'
+          } 
+          {' '}・共 {totalCount} 筆
+        </p>
+      </div>
 
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto px-4 py-2 max-w-md mx-auto w-full">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-white/30">
             <span className="material-symbols-outlined text-5xl mb-3">receipt_long</span>
-            <p className="text-sm">此期間沒有交易紀錄</p>
+            <p className="text-sm">沒有找到帳務紀錄</p>
           </div>
         ) : (
           <div className="bg-card-dark rounded-xl overflow-hidden border border-white/5 divide-y divide-white/5">
-            {filteredItems.map((item, idx) => {
+            {items.map((item, idx) => {
               const isIncome = item.type === 'income';
               return (
                 <div key={idx} className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`size-10 rounded-full flex items-center justify-center ${
-                        isIncome ? 'bg-green-500/10' : 'bg-red-500/10'
-                      }`}
-                    >
-                      <span
-                        className={`material-symbols-outlined text-[20px] ${
-                          isIncome ? 'text-green-500' : 'text-red-500'
-                        }`}
-                      >
+                    <div className={`size-10 rounded-full flex items-center justify-center ${isIncome ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                      <span className={`material-symbols-outlined text-[20px] ${isIncome ? 'text-green-500' : 'text-red-500'}`}>
                         {isIncome ? 'add_circle' : 'logout'}
                       </span>
                     </div>
@@ -136,11 +136,7 @@ export const TransactionHistory: React.FC = () => {
                       <p className="text-[10px] text-white/40">{item.date} {!isIncome && '・已申請'}</p>
                     </div>
                   </div>
-                  <span
-                    className={`text-sm font-bold ${
-                      isIncome ? 'text-green-500' : 'text-red-500'
-                    }`}
-                  >
+                  <span className={`text-sm font-bold ${isIncome ? 'text-green-500' : 'text-red-500'}`}>
                     {isIncome ? '+' : '-'}${item.amount.toLocaleString()}
                   </span>
                 </div>
@@ -149,16 +145,31 @@ export const TransactionHistory: React.FC = () => {
           </div>
         )}
 
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 py-6">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-4 py-2 bg-white/10 rounded-lg text-sm disabled:opacity-30"
+            >
+              上一頁
+            </button>
+            <span className="text-sm text-white/60">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-4 py-2 bg-white/10 rounded-lg text-sm disabled:opacity-30"
+            >
+              下一頁
+            </button>
+          </div>
+        )}
+
         <div className="h-10"></div>
       </main>
-
-      <DateRangeSheet
-        isOpen={isDateSheetOpen}
-        onClose={() => setIsDateSheetOpen(false)}
-        onConfirm={handleCustomConfirm}
-        initialStart={customRange?.start}
-        initialEnd={customRange?.end}
-      />
     </div>
   );
 };

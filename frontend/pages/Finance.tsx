@@ -186,24 +186,26 @@ export const Finance: React.FC = () => {
 
       <main className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-md mx-auto w-full">
         {/* Balance Card */}
-        <section className="relative overflow-hidden rounded-xl bg-card-dark p-6 shadow-xl border border-white/5">
-          <div className="absolute -right-12 -top-12 size-40 bg-primary/10 rounded-full blur-3xl"></div>
-          <div className="flex flex-col gap-1">
-            <span className="text-white/60 text-sm font-medium">可提領餘額</span>
-            <h2 className="text-4xl font-bold text-success tracking-tight">
-              {balanceData ? `$${availableBalance.toLocaleString()}` : '--'}
-            </h2>
-          </div>
-          <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-white/40 text-sm">update</span>
-              <p className="text-white/40 text-xs">即時查詢</p>
+        {localStorage.getItem('show_balance') === '1' && (
+          <section className="relative overflow-hidden rounded-xl bg-card-dark p-6 shadow-xl border border-white/5">
+            <div className="absolute -right-12 -top-12 size-40 bg-primary/10 rounded-full blur-3xl"></div>
+            <div className="flex flex-col gap-1">
+              <span className="text-white/60 text-sm font-medium">可提領餘額</span>
+              <h2 className="text-4xl font-bold text-success tracking-tight">
+                {balanceData ? `$${availableBalance.toLocaleString()}` : '--'}
+              </h2>
             </div>
-            <div className="size-8 rounded-full bg-white/5 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
+            <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-4">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-white/40 text-sm">update</span>
+                <p className="text-white/40 text-xs">即時查詢</p>
+              </div>
+              <div className="size-8 rounded-full bg-white/5 flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Statement Card */}
         <section className="space-y-3">
@@ -270,15 +272,17 @@ export const Finance: React.FC = () => {
         </section>
 
         {/* Actions */}
-        <section className="space-y-4">
-          <button
-            onClick={() => setIsSheetOpen(true)}
-            className="w-full bg-primary hover:bg-primary/90 text-background-dark font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary/10 flex items-center justify-center gap-2 text-lg active:scale-[0.98]"
-          >
-            <span className="material-symbols-outlined">payments</span>
-            申請提領款項
-          </button>
-        </section>
+        {localStorage.getItem('show_balance') === '1' && (
+          <section className="space-y-4">
+            <button
+              onClick={() => setIsSheetOpen(true)}
+              className="w-full bg-primary hover:bg-primary/90 text-background-dark font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary/10 flex items-center justify-center gap-2 text-lg active:scale-[0.98]"
+            >
+              <span className="material-symbols-outlined">payments</span>
+              申請提領款項
+            </button>
+          </section>
+        )}
 
         {/* Transactions */}
         <section className="space-y-4 pb-10">
@@ -321,7 +325,9 @@ export const Finance: React.FC = () => {
         </section>
       </main>
 
-      <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={availableBalance} onSuccess={reloadData} />
+      {localStorage.getItem('show_balance') === '1' && (
+        <WithdrawalSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} amount={availableBalance} onSuccess={reloadData} />
+      )}
       <DateRangeSheet
         isOpen={isDateSheetOpen}
         onClose={() => setIsDateSheetOpen(false)}

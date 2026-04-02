@@ -1,12 +1,15 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const startDate = url.searchParams.get('start_date') || '';
-  const endDate = url.searchParams.get('end_date') || '';
-  const page = url.searchParams.get('page') || '';
-  const pageSize = url.searchParams.get('page_size') || '';
   const token = context.request.headers.get('Authorization') || '';
 
+  const startDate = url.searchParams.get('start_date') || '';
+  const endDate = url.searchParams.get('end_date') || '';
+  const storeId = url.searchParams.get('store_id') || '';
+  const page = url.searchParams.get('page') || '';
+  const pageSize = url.searchParams.get('page_size') || '';
+
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  if (storeId) params.set('store_id', storeId);
   if (page) params.set('page', page);
   if (pageSize) params.set('page_size', pageSize);
 

@@ -1,9 +1,14 @@
 export async function onRequest(context) {
+  const url = new URL(context.request.url);
   const token = context.request.headers.get('Authorization') || '';
+
+  // 取得所有查詢參數並轉發
+  const params = new URLSearchParams(url.searchParams);
+  const query = params.toString() ? `?${params.toString()}` : '';
 
   try {
     const response = await fetch(
-      'https://smartpay.propskynet.com/api/store-app/activity',
+      `https://smartpay.propskynet.com/api/store-app/activity${query}`,
       { headers: { 'Authorization': token } }
     );
 

@@ -75,7 +75,15 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 - [x] 新增對應 CF Function proxy
 - [ ] 提領時可選擇不同銀行帳戶
 
-### Phase 4: PWA 支援
+### Phase 4: 機台遠端控制
+- [x] 機台詳情 Modal 介面
+- [x] 重啟按鈕 + 二次確認
+- [x] 遠端投幣按鈕 + 二次確認
+- [x] 串接 `POST /api/claw-machines/{machine_id}/restart` 重啟 API
+- [x] 串接 `POST /api/claw-machines/{machine_id}/start` 啟動/遠端投幣 API
+- [ ] 後台小卡管理需先設置 MQTT Token 和 Card ID
+
+### Phase 5: PWA 支援
 - [ ] 新增 manifest.json + service worker
 - [ ] 支援「加到手機桌面」
 - [ ] 離線 cache 基本頁面框架
@@ -84,6 +92,50 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 ---
 
 ## 版本資訊
+
+### v3.1.8 (2026-03-17)
+**新功能**
+- 機台重啟/遠端投幣串接正式啟用，使用 readings API 的 clawmachine_id
+
+### v3.1.7 (2026-03-17)
+**修正**
+- 暫停機台控制功能（按鈕 disabled），等待後端在 readings API 加入 id 欄位
+
+### v3.1.6 (2026-03-17)
+**修正**
+- 機台重啟/遠端投幣改用 happy-cardmachines API 的整數 id，正確對應後端控制 API
+
+### v3.1.5 (2026-03-17)
+**修正**
+- 修正 machines/status CF Function 路徑錯誤（machines-status.js → machines/status.js）
+
+### v3.1.4 (2026-03-17)
+**修正**
+- 修正機台重啟/遠端投幣送出錯誤 ID 的問題：parseInt("8C4B1470EB1C") = 8，改為直接傳字串 cpu_id
+
+### v3.1.3 (2026-03-17)
+**修正**
+- 機台控制改用 cpu_id，修正多日模式下送出錯誤機台 ID 導致重啟/遠端投幣失敗
+
+### v3.1.2 (2026-03-17)
+**修正**
+- 新增 CF Function proxy，修正機台重啟與遠端投幣回傳 405 錯誤
+
+### v3.1.0 (2026-03-06)
+**新功能**
+- 機台控制介面：點擊機台彈出詳情 Modal，可進行重啟/遠端投幣（需後端 API 支援）
+- 營收報告的熱門機台、異常機台、營收 TOP 3 新增顯示場地名稱
+- 機器列表場地名稱優化
+- 設定頁新增「更新記錄」功能，顯示近 5 次版本更新
+- 版本號更新至 3.1.0
+
+### v3.0.0 (2026-02-27)
+**新功能**
+- 多場地功能：支援 22+ 場地管理
+- 場地選單：可切換不同場地查看資料
+- 營收報告時間篩選：24小時內、3天內、7天內、30天內
+- 帳務紀錄日期篩選與分頁功能
+- 機器列表優化
 
 ### v2.7.0 (2026-02-26)
 **Bug 修復**
