@@ -102,6 +102,7 @@ export const Machines: React.FC = () => {
       setLoading(false);
       return;
     }
+    setLoading(true);
     try {
       const data = await fetchReadings(getTodayString());
       todayCache = { data, cachedAt: Date.now() };
@@ -152,8 +153,12 @@ export const Machines: React.FC = () => {
 
 
   useEffect(() => {
-    loadFilterData(dateFilter);
-  }, [dateFilter, loadFilterData]);
+    if (dateFilter === 'realtime') {
+      loadToday(true);
+    } else {
+      loadFilterData(dateFilter);
+    }
+  }, [dateFilter, loadFilterData, loadToday]);
 
   // 今日機台狀態 map（cpu_id → last_reading_time）
   const todayStatusMap = useMemo(() => {
