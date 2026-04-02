@@ -93,6 +93,12 @@ functions/api/    Cloudflare Pages Functions (API Proxy)
 
 ## 版本資訊
 
+### v3.2.0 (2026-03-17)
+**新功能**
+- App 更名為「擎天智慧販賣機管理」
+- 登入頁換上 Propsky 擎天 Logo
+- 設定頁新增「關於我們」區塊，含公司介紹與 LINE OA 連結
+
 ### v3.1.8 (2026-03-17)
 **新功能**
 - 機台重啟/遠端投幣串接正式啟用，使用 readings API 的 clawmachine_id
