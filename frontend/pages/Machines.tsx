@@ -42,29 +42,29 @@ function getTodayString(): string {
   return formatDate(new Date());
 }
 
-function getDateRange(filter: DateFilter): { start: string; end: string; isSingleDay: boolean } {
+function getDateRange(filter: Exclude<DateFilter, 'realtime'>): { start: string; end: string } {
   const now = new Date();
   const today = formatDate(now);
   switch (filter) {
     case 'today':
-      return { start: today, end: today, isSingleDay: true };
+      return { start: today, end: today };
     case 'yesterday': {
       const y = new Date(now); y.setDate(now.getDate() - 1);
       const ys = formatDate(y);
-      return { start: ys, end: ys, isSingleDay: true };
+      return { start: ys, end: ys };
     }
     case 'seven_days': {
       const d = new Date(now); d.setDate(now.getDate() - 6);
-      return { start: formatDate(d), end: today, isSingleDay: false };
+      return { start: formatDate(d), end: today };
     }
     case 'week': {
       const monday = new Date(now);
       const offset = (now.getDay() === 0 ? 6 : now.getDay() - 1);
       monday.setDate(now.getDate() - offset);
-      return { start: formatDate(monday), end: today, isSingleDay: false };
+      return { start: formatDate(monday), end: today };
     }
     case 'month':
-      return { start: formatDate(new Date(now.getFullYear(), now.getMonth(), 1)), end: today, isSingleDay: false };
+      return { start: formatDate(new Date(now.getFullYear(), now.getMonth(), 1)), end: today };
   }
 }
 
@@ -114,7 +114,7 @@ export const Machines: React.FC = () => {
     }
   }, []);
 
-  // 篩選期間資料（所有日期都用 payments API，realtime 直接用 todayReadings）
+  // 篩選期間資料（payments API 負責所有統計篩選，realtime 直接用 todayReadings）
   const loadFilterData = useCallback(async (filter: DateFilter) => {
     if (filter === 'realtime') return;
     const range = getDateRange(filter);
@@ -177,7 +177,7 @@ export const Machines: React.FC = () => {
 
   // 統一機台顯示資料
   const allMachineItems = useMemo((): MachineViewItem[] => {
-    // 即時抄表：直接用 todayReadings 的 counter 值
+    // 即時抄表：唯一使用 readings 原始 counter 值的情境
     if (dateFilter === 'realtime') {
       return (todayReadings?.items || []).map(item => ({
         key: item.cpu_id,
