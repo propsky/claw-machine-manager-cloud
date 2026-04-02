@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 declare const __APP_VERSION__: string;
 import { FavoriteBankAccount } from '../types';
 import { fetchBankAccounts, createBankAccount, deleteBankAccount, setDefaultBankAccount, fetchUserProfile, updateUserProfile, UserProfile } from '../services/api';
-import { logout } from '../services/auth';
+import { logout, isGuest } from '../services/auth';
 import { BANK_CODES, getBankName } from '../constants/bankCodes';
 import { Toast, ToastType } from '../components/Toast';
 
@@ -305,6 +305,17 @@ export const Settings: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-md mx-auto w-full">
+        {/* 訪客模式提示 */}
+        {isGuest() && (
+          <div className="bg-primary/10 border border-primary/30 rounded-xl px-4 py-3 flex items-start gap-3">
+            <span className="material-symbols-outlined text-primary mt-0.5">visibility</span>
+            <div>
+              <p className="text-primary font-bold text-sm">訪客體驗模式</p>
+              <p className="text-white/50 text-xs mt-0.5">目前顯示的是示範資料，不會連接真實機台。若要使用完整功能，請登入正式帳號。</p>
+            </div>
+          </div>
+        )}
+
         {/* 錯誤訊息 */}
         {error && (
           <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm">

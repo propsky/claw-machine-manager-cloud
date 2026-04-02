@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'smartpay_token';
+const GUEST_KEY = 'smartpay_guest';
 
 export async function login(username: string, password: string): Promise<void> {
   const response = await fetch('/api/auth/login', {
@@ -16,8 +17,18 @@ export async function login(username: string, password: string): Promise<void> {
   localStorage.setItem(TOKEN_KEY, data.access_token);
 }
 
+export function loginAsGuest(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.setItem(GUEST_KEY, 'true');
+}
+
+export function isGuest(): boolean {
+  return localStorage.getItem(GUEST_KEY) === 'true';
+}
+
 export function logout(): void {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(GUEST_KEY);
   window.location.hash = '#/login';
 }
 
@@ -26,6 +37,7 @@ export function getToken(): string | null {
 }
 
 export function isAuthenticated(): boolean {
+  if (isGuest()) return true;
   const token = getToken();
   if (!token) return false;
 

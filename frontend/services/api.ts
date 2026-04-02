@@ -1,4 +1,8 @@
-import { getToken, logout } from './auth';
+import { getToken, logout, isGuest } from './auth';
+import {
+  MOCK_USER, MOCK_STORES, MOCK_READINGS, MOCK_BALANCE,
+  MOCK_ACTIVITY, MOCK_BANK_ACCOUNTS, getMockPayments,
+} from './mockData';
 import type {
   ReadingsResponse,
   MachinesStatusResponse,
@@ -56,6 +60,7 @@ export interface UserProfile {
 }
 
 export async function fetchUserProfile(): Promise<UserProfile> {
+  if (isGuest()) return MOCK_USER;
   const url = getBaseUrl('/api/users/me');
   const response = await authFetch(url);
   return response.json();
@@ -81,6 +86,10 @@ export async function updateUserProfile(data: {
 // ==================== 舊的 API 函數 ====================
 
 export async function fetchReadings(date: string, storeId?: number): Promise<ReadingsResponse> {
+  if (isGuest()) {
+    const items = storeId ? MOCK_READINGS.items.filter(i => i.store_id === storeId) : MOCK_READINGS.items;
+    return { ...MOCK_READINGS, date, items, total_machines: items.length };
+  }
   const params = new URLSearchParams({ date });
   if (storeId) params.set('store_id', String(storeId));
   const url = getBaseUrl(`/api/store-app/readings?${params.toString()}`);
@@ -97,6 +106,7 @@ export async function fetchMachinesStatus(storeId?: number): Promise<MachinesSta
 }
 
 export async function fetchBalance(storeId?: number): Promise<BalanceResponse> {
+  if (isGuest()) return MOCK_BALANCE;
   const params = new URLSearchParams();
   if (storeId) params.set('store_id', String(storeId));
   const url = getBaseUrl(`/api/store-app/balance?${params.toString()}`);
@@ -111,6 +121,7 @@ export async function fetchActivity(
   page?: number,
   pageSize?: number
 ): Promise<ActivityResponse> {
+  if (isGuest()) return MOCK_ACTIVITY;
   const params = new URLSearchParams();
   if (storeId) params.set('store_id', String(storeId));
   if (startDate) params.set('start_date', startDate);
@@ -123,6 +134,7 @@ export async function fetchActivity(
 }
 
 export async function fetchPayments(startDate: string, endDate: string, storeId?: number, page?: number, pageSize?: number): Promise<PaymentsResponse> {
+  if (isGuest()) return getMockPayments(startDate, endDate);
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
   if (storeId) params.set('store_id', String(storeId));
   if (page !== undefined) params.set('page', String(page));
@@ -141,6 +153,7 @@ export interface StoreOption {
 }
 
 export async function fetchStores(): Promise<StoreOption[]> {
+  if (isGuest()) return MOCK_STORES;
   const url = getBaseUrl('/api/stores/options');
   const response = await authFetch(url);
   return response.json();
@@ -169,6 +182,7 @@ export async function fetchStoreReadings(storeId: number): Promise<StoreReadings
 // ==================== 銀行帳戶 API ====================
 
 export async function fetchBankAccounts(): Promise<FavoriteBankAccountListResponse> {
+  if (isGuest()) return MOCK_BANK_ACCOUNTS;
   const url = getBaseUrl('/api/favorite-bank-accounts');
   const response = await authFetch(url);
   return response.json();

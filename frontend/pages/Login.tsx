@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../services/auth';
+import { login, loginAsGuest } from '../services/auth';
 
 export const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -86,6 +86,14 @@ export const Login: React.FC = () => {
             )}
           </button>
         </form>
+
+        <button
+          onClick={() => { loginAsGuest(); navigate('/', { replace: true }); }}
+          className="w-full text-white/40 hover:text-white/70 text-sm py-2 transition-colors flex items-center justify-center gap-1.5"
+        >
+          <span className="material-symbols-outlined text-base">visibility</span>
+          訪客體驗（使用示範資料）
+        </button>
 
         <p className="text-center text-[11px] text-white/20">
           擎天有限公司 Propsky
