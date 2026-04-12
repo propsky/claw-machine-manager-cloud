@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { MachineStatus, ReadingsResponse, ReadingItem, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
+import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
 
 const PLAY_PRICE = 10;
 
@@ -109,6 +110,7 @@ export const Dashboard: React.FC = () => {
   // 營收報表 Modal
   const [showRevenueReport, setShowRevenueReport] = useState(false);
   const [revenueFilter, setRevenueFilter] = useState<RevenueFilter>('day7');
+  const [reportTypeFilter, setReportTypeFilter] = useState<MachineType | 'all'>('all');
 
   // 同步 ref 與 state
   useEffect(() => {
@@ -253,6 +255,16 @@ export const Dashboard: React.FC = () => {
   const machines = realtimeReadings?.items || [];
   const onlineCount = machines.filter(m => getMachineStatus(m) === MachineStatus.ONLINE).length;
   const offlineCount = machines.filter(m => getMachineStatus(m) === MachineStatus.OFFLINE).length;
+
+  // 各機台類型數量（健康狀態區塊用）
+  const typeCountMap = useMemo(() => {
+    const map = new Map<MachineType, number>();
+    machines.forEach(item => {
+      const type = getMachineTypeInfo(item.cpu_id).type;
+      map.set(type, (map.get(type) || 0) + 1);
+    });
+    return map;
+  }, [machines]);
   const availableBalance = balanceData?.balance?.available_amount ?? null;
   const recentActivity = activityData?.items?.slice(0, 3) || [];
 
@@ -268,18 +280,22 @@ export const Dashboard: React.FC = () => {
     const totalRevenue = s ? ((s.total_coin_amount || 0) + (s.total_card_amount || 0)) : 0;
     const coinRevenue = s?.total_coin_amount || 0;
     const cardRevenue = s?.total_card_amount || 0;
-    const totalPlays = s ? (Math.round((s.total_coin_amount || 0) / PLAY_PRICE) + (s.total_card_play_count || 0)) : 0;
     const totalPrizeCount = s?.total_prize_count || 0;
     const avgPayout = totalPrizeCount > 0 ? Math.round(totalRevenue / totalPrizeCount) : 0;
     const avgDailyRevenue = Math.round(totalRevenue / FILTER_DAYS[revenueFilter]);
 
     // 從 payments items 按機台聚合，正確涵蓋整個日期區間
-    const machineMap = new Map<string, { name: string; store_name: string; plays: number; revenue: number; gifts: number }>();
+    const machineMap = new Map<string, { name: string; store_name: string; plays: number; revenue: number; gifts: number; machineType: MachineType }>();
     (revenuePayments?.items || []).forEach(item => {
       const key = item.machine_id || item.machine_name;
       const name = item.machine_display_name || item.machine_name;
       const store_name = item.store_name || '';
-      const plays = Math.round((item.coin_amount || 0) / PLAY_PRICE) + (item.card_play_count || 0);
+      const typeInfo = getMachineTypeInfo(item.happy_cpu_id);
+      // 用 per-machine 單價計算投幣次數（單價為 null 時用 transaction_count）
+      const coinPlays = typeInfo.coinPrice
+        ? Math.round((item.coin_amount || 0) / typeInfo.coinPrice)
+        : (item.transaction_count || 0);
+      const plays = coinPlays + (item.card_play_count || 0);
       const revenue = item.total_revenue || 0;
       const gifts = item.prize_count || 0;
       if (machineMap.has(key)) {
@@ -288,13 +304,20 @@ export const Dashboard: React.FC = () => {
         existing.revenue += revenue;
         existing.gifts += gifts;
       } else {
-        machineMap.set(key, { name, store_name, plays, revenue, gifts });
+        machineMap.set(key, { name, store_name, plays, revenue, gifts, machineType: typeInfo.type });
       }
     });
     const machineStats = Array.from(machineMap.values());
 
+    // totalPlays 從 machineStats 加總（比從 summary 用固定單價推算更準確）
+    const totalPlays = machineStats.reduce((sum, m) => sum + m.plays, 0);
+
     // 計算總出貨數
     const totalGiftCount = machineStats.reduce((sum, m) => sum + m.gifts, 0);
+
+    // 目前資料集中有哪些機台類型（供 Modal 類型篩選用）
+    const typesInData = Array.from(new Set(machineStats.map(m => m.machineType)));
+    const availableReportTypes = (Object.keys(MACHINE_TYPE_INFO) as MachineType[]).filter(t => typesInData.includes(t));
 
     // 熱門機台（遊戲次數 > 0，出貨數 > 0）
     const hotMachines = machineStats
@@ -303,9 +326,12 @@ export const Dashboard: React.FC = () => {
       .slice(0, 3);
 
     // 異常機台（0 次遊戲 或 高遊戲但 0 出貨）
-    const problemMachines = machineStats.filter(m =>
-      m.plays === 0 || (m.plays > 5 && m.gifts === 0)
-    );
+    // 注意：販賣機和彈珠檯沒有出獎概念，不用「0 出獎」判斷異常
+    const GIFT_MACHINE_TYPES: MachineType[] = ['claw', 'gacha', 'whack', 'rocking'];
+    const problemMachines = machineStats.filter(m => {
+      if (m.plays === 0) return true;
+      return GIFT_MACHINE_TYPES.includes(m.machineType) && m.plays > 5 && m.gifts === 0;
+    });
 
     // 營收 TOP 3
     const topMachines = [...machineStats]
@@ -324,6 +350,8 @@ export const Dashboard: React.FC = () => {
       hotMachines,
       problemMachines,
       topMachines,
+      machineStats,
+      availableReportTypes,
       hasMachineData: machineStats.length > 0,
     };
   }, [revenuePayments, revenueFilter]);
@@ -455,6 +483,24 @@ export const Dashboard: React.FC = () => {
             </div>
             <span className="text-sm font-bold text-danger">{loading ? '--' : offlineCount}</span>
           </div>
+          {/* 分類型計數（多種類型時才顯示） */}
+          {!loading && typeCountMap.size > 1 && (
+            <>
+              <div className="h-[1px] bg-slate-100 dark:bg-zinc-800 mx-4"></div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-xs font-bold text-slate-400 dark:text-zinc-500">機台類型分佈</span>
+                <div className="flex gap-2 flex-wrap justify-end">
+                  {(Object.keys(MACHINE_TYPE_INFO) as MachineType[])
+                    .filter(t => typeCountMap.has(t))
+                    .map(t => (
+                      <span key={t} className="text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
+                        {MACHINE_TYPE_INFO[t].icon} {typeCountMap.get(t)}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -503,7 +549,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="px-6 pb-4">
               <h1 className="text-white text-xl font-bold text-center">📊 營收報告</h1>
-              {/* 篩選按鈕 */}
+              {/* 時間篩選 */}
               <div className="flex gap-2 mt-3 justify-center">
                 {REVENUE_FILTER_LABELS.map((f) => (
                   <button
@@ -519,6 +565,34 @@ export const Dashboard: React.FC = () => {
                   </button>
                 ))}
               </div>
+              {/* 機台類型篩選（多種類型時才顯示） */}
+              {revenueReport && revenueReport.availableReportTypes.length > 1 && (
+                <div className="flex gap-2 mt-2 justify-center flex-wrap">
+                  <button
+                    onClick={() => setReportTypeFilter('all')}
+                    className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                      reportTypeFilter === 'all'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white/5 text-white/40 hover:bg-white/10'
+                    }`}
+                  >
+                    全類型
+                  </button>
+                  {revenueReport.availableReportTypes.map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setReportTypeFilter(t)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                        reportTypeFilter === t
+                          ? 'bg-white/20 text-white'
+                          : 'bg-white/5 text-white/40 hover:bg-white/10'
+                      }`}
+                    >
+                      {MACHINE_TYPE_INFO[t].icon} {MACHINE_TYPE_INFO[t].name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* 載入中覆蓋層 */}
@@ -587,18 +661,24 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* 熱門機台 */}
-              {revenueReport?.hotMachines && revenueReport.hotMachines.length > 0 && (
+              {revenueReport?.hotMachines && (
+                revenueReport.hotMachines.filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
+              ).length > 0 && (
                 <div>
                   <p className="text-primary text-sm font-bold mb-2 flex items-center gap-1">
                     <span>🔥</span> 熱門機台（應補貨）
                   </p>
                   <div className="space-y-2">
-                    {revenueReport.hotMachines.map((m, idx) => (
+                    {revenueReport.hotMachines
+                      .filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
+                      .map((m, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className="text-green-400 font-bold">#{idx + 1}</span>
                           <div className="flex flex-col">
-                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white text-sm">
+                              <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
+                            </span>
                             <span className="text-white/50 text-xs">{m.store_name}</span>
                           </div>
                         </div>
@@ -613,24 +693,29 @@ export const Dashboard: React.FC = () => {
               )}
 
               {/* 異常機台 */}
-              {revenueReport?.problemMachines && revenueReport.problemMachines.length > 0 && (
+              {revenueReport?.problemMachines && (
+                revenueReport.problemMachines.filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
+              ).length > 0 && (
                 <div>
                   <p className="text-red-400 text-sm font-bold mb-2 flex items-center gap-1">
                     <span>⚠️</span> 異常機台（需檢查）
                   </p>
                   <div className="space-y-2">
-                    {revenueReport.problemMachines.map((m, idx) => (
+                    {revenueReport.problemMachines
+                      .filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
+                      .map((m, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className="text-red-400 font-bold">!</span>
                           <div className="flex flex-col">
-                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white text-sm">
+                              <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
+                            </span>
                             <span className="text-white/50 text-xs">{m.store_name}</span>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-red-400 text-sm">{m.plays === 0 ? '0 次遊戲' : '高遊戲 0 出貨'}</p>
-                          <p className="text-white/50 text-xs">{m.status === 'OFFLINE' ? '離線中' : '設定異常'}</p>
                         </div>
                       </div>
                     ))}
@@ -639,20 +724,26 @@ export const Dashboard: React.FC = () => {
               )}
 
               {/* 營收 TOP 3 */}
-              {revenueReport?.topMachines && revenueReport.topMachines.length > 0 && (
+              {revenueReport?.topMachines && (
+                revenueReport.topMachines.filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
+              ).length > 0 && (
                 <div>
                   <p className="text-white/70 text-sm font-bold mb-2 flex items-center gap-1">
                     <span>🏆</span> 營收 TOP 3
                   </p>
                   <div className="space-y-2">
-                    {revenueReport.topMachines.map((m, idx) => (
+                    {revenueReport.topMachines
+                      .filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
+                      .map((m, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-white/5 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
                             {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                           </span>
                           <div className="flex flex-col">
-                            <span className="text-white text-sm">機台 {m.name}</span>
+                            <span className="text-white text-sm">
+                              <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
+                            </span>
                             <span className="text-white/50 text-xs">{m.store_name}</span>
                           </div>
                         </div>

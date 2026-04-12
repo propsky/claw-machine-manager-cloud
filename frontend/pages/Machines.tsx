@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
-
-const PLAY_PRICE = 10;
+import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
 const MACHINES_CACHE_TTL = 5 * 60 * 1000;
 let todayCache: { data: ReadingsResponse; cachedAt: number } | null = null;
 
@@ -32,6 +31,7 @@ interface MachineViewItem {
   gift_out_count: number;
   revenue: number;
   last_reading_time: string | null;
+  machineType: MachineType;
 }
 
 function formatDate(d: Date): string {
@@ -88,6 +88,7 @@ export const Machines: React.FC = () => {
   const [filterLoading, setFilterLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
+  const [typeFilter, setTypeFilter] = useState<MachineType | 'all'>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   
@@ -184,20 +185,25 @@ export const Machines: React.FC = () => {
   const allMachineItems = useMemo((): MachineViewItem[] => {
     // 即時抄表：唯一使用 readings 原始 counter 值的情境
     if (dateFilter === 'realtime') {
-      return (todayReadings?.items || []).map(item => ({
-        key: item.cpu_id,
-        cpu_id: item.cpu_id,
-        machine_id: item.clawmachine_id ?? null,
-        machine_name: item.machine_name,
-        store_name: item.store_name,
-        store_id: item.store_id,
-        total_play_count: item.total_play_count,
-        coin_amount: item.coin_play_count * PLAY_PRICE,
-        card_amount: item.epay_play_count * PLAY_PRICE,
-        gift_out_count: item.gift_out_count,
-        revenue: item.total_play_count * PLAY_PRICE,
-        last_reading_time: item.last_reading_time,
-      }));
+      return (todayReadings?.items || []).map(item => {
+        const typeInfo = getMachineTypeInfo(item.cpu_id);
+        const coinPrice = typeInfo.coinPrice ?? 0;
+        return {
+          key: item.cpu_id,
+          cpu_id: item.cpu_id,
+          machine_id: item.clawmachine_id ?? null,
+          machine_name: item.machine_name,
+          store_name: item.store_name,
+          store_id: item.store_id,
+          total_play_count: item.total_play_count,
+          coin_amount: item.coin_play_count * coinPrice,
+          card_amount: item.epay_play_count * coinPrice,
+          gift_out_count: item.gift_out_count,
+          revenue: item.total_play_count * coinPrice,
+          last_reading_time: item.last_reading_time,
+          machineType: typeInfo.type,
+        };
+      });
     }
 
     if (!filterPayments) return [];
@@ -205,7 +211,10 @@ export const Machines: React.FC = () => {
     const machineMap = new Map<string, MachineViewItem>();
     (filterPayments.items || []).forEach(item => {
       const key = item.happy_cpu_id || item.machine_id;
-      const coinPlayCount = Math.round(item.coin_amount / PLAY_PRICE);
+      const typeInfo = getMachineTypeInfo(item.happy_cpu_id);
+      const coinPlayCount = typeInfo.coinPrice
+        ? Math.round(item.coin_amount / typeInfo.coinPrice)
+        : (item.transaction_count || 0);
       if (machineMap.has(key)) {
         const m = machineMap.get(key)!;
         m.total_play_count += coinPlayCount + item.card_play_count;
@@ -227,6 +236,7 @@ export const Machines: React.FC = () => {
           gift_out_count: item.prize_count,
           revenue: item.total_revenue,
           last_reading_time: todayStatusMap.get(key) ?? null,
+          machineType: typeInfo.type,
         });
       }
     });
@@ -251,9 +261,16 @@ export const Machines: React.FC = () => {
   const onlineCount = sortedMachines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.ONLINE).length;
   const offlineCount = sortedMachines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.OFFLINE).length;
 
+  // 目前資料集中實際出現的機台類型（決定是否顯示類型篩選列）
+  const availableTypes = useMemo((): MachineType[] => {
+    const seen = new Set(sortedMachines.map(m => m.machineType));
+    return (Object.keys(MACHINE_TYPE_INFO) as MachineType[]).filter(t => seen.has(t));
+  }, [sortedMachines]);
+
   const filteredMachines = sortedMachines.filter(m => {
-    if (statusFilter === 'online') return getMachineStatus(m.last_reading_time) === MachineStatus.ONLINE;
-    if (statusFilter === 'offline') return getMachineStatus(m.last_reading_time) === MachineStatus.OFFLINE;
+    if (statusFilter === 'online' && getMachineStatus(m.last_reading_time) !== MachineStatus.ONLINE) return false;
+    if (statusFilter === 'offline' && getMachineStatus(m.last_reading_time) !== MachineStatus.OFFLINE) return false;
+    if (typeFilter !== 'all' && m.machineType !== typeFilter) return false;
     return true;
   });
 
@@ -319,6 +336,35 @@ export const Machines: React.FC = () => {
             斷線 <span className="text-slate-400 ml-0.5">{offlineCount}</span>
           </button>
         </div>
+
+        {/* 機台類型篩選（只有多種類型時才顯示） */}
+        {availableTypes.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
+            <button
+              onClick={() => setTypeFilter('all')}
+              className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
+                typeFilter === 'all' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              }`}
+            >
+              全類型
+            </button>
+            {availableTypes.map(type => {
+              const info = MACHINE_TYPE_INFO[type];
+              const count = sortedMachines.filter(m => m.machineType === type).length;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setTypeFilter(type)}
+                  className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
+                    typeFilter === type ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+                  }`}
+                >
+                  {info.icon} {info.name} {count}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
       <main className="flex-1 p-3 space-y-2.5">
@@ -336,7 +382,9 @@ export const Machines: React.FC = () => {
 
         {!isLoading && !error && filteredMachines.map((machine, idx) => {
           const status = getMachineStatus(machine.last_reading_time);
-          const avgPayout = machine.gift_out_count > 0
+          const typeInfo = MACHINE_TYPE_INFO[machine.machineType];
+          const hasGiftConcept = ['claw', 'gacha', 'whack', 'rocking'].includes(machine.machineType);
+          const avgPayout = hasGiftConcept && machine.gift_out_count > 0
             ? Math.round(machine.revenue / machine.gift_out_count)
             : 0;
 
@@ -356,6 +404,10 @@ export const Machines: React.FC = () => {
                   <span className="text-xs text-slate-500 mt-0.5">{machine.store_name}</span>
 
                   <div className="flex items-center gap-1.5 mt-1">
+                    {/* 機台類型 badge */}
+                    <span className="text-xs text-slate-400 font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                      {typeInfo.icon} {typeInfo.name}
+                    </span>
                     {status === MachineStatus.ONLINE && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-neon-green/10 border border-neon-green/20">
                         <div className="h-1.5 w-1.5 rounded-full bg-neon-green animate-pulse"></div>
@@ -400,20 +452,24 @@ export const Machines: React.FC = () => {
                     ${machine.revenue.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">出獎數</span>
-                  <span className="text-base font-bold tracking-tight text-white">
-                    {machine.gift_out_count}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">均出</span>
-                  <span className={`text-base font-bold tracking-tight ${
-                    avgPayout > 800 ? 'text-bright-red font-black' : 'text-white'
-                  }`}>
-                    {avgPayout > 0 ? avgPayout.toLocaleString() : '--'}
-                  </span>
-                </div>
+                {hasGiftConcept && (
+                  <>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-slate-500 font-medium mb-0.5">出獎數</span>
+                      <span className="text-base font-bold tracking-tight text-white">
+                        {machine.gift_out_count}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-slate-500 font-medium mb-0.5">均出</span>
+                      <span className={`text-base font-bold tracking-tight ${
+                        avgPayout > 800 ? 'text-bright-red font-black' : 'text-white'
+                      }`}>
+                        {avgPayout > 0 ? avgPayout.toLocaleString() : '--'}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           );
