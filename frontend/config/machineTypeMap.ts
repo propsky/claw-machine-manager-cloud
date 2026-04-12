@@ -57,10 +57,18 @@ export const MACHINE_TYPE_INFO: Record<MachineType, MachineTypeInfo> = {
 // ─────────────────────────────────────────────
 
 export const MACHINE_TYPE_MAP: Record<string, MachineType> = {
+  // ── 真實機台 ──────────────────────────────
   '781C3CEB8B9C': 'whack',    // 地鼠機
   '6CC8403B0A8C': 'rocking',  // 搖馬機
   '6CC8403BCEBC': 'gacha',    // 機率扭蛋機
   '6CC8403B24E8': 'pinball',  // 彈珠檯
+
+  // ── 訪客示範機台（Mock）──────────────────
+  'MOCK_GACHA_001':   'gacha',
+  'MOCK_WHACK_001':   'whack',
+  'MOCK_ROCKING_001': 'rocking',
+  'MOCK_PINBALL_001': 'pinball',
+  'MOCK_VENDING_001': 'vending',
 };
 
 // ─────────────────────────────────────────────

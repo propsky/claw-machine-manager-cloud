@@ -1,6 +1,9 @@
 /**
  * 訪客模式 Mock 資料
- * 模擬一個有 2 家場地、6 台機台的真實運營情境
+ * 模擬 2 家場地、8 台機台、6 種機型的真實運營情境
+ *
+ * 大安店（4台）：娃娃機×2、扭蛋機×1、打地鼠×1（離線）
+ * 信義店（4台）：娃娃機×1、搖馬機×1、彈珠檯×1、販賣機×1
  */
 
 import type {
@@ -20,6 +23,7 @@ const daysAgo = (n: number) => {
   d.setDate(today.getDate() - n);
   return fmt(d);
 };
+const todayHH = String(today.getHours()).padStart(2, '0');
 
 export const MOCK_USER: UserProfile = {
   id: 0,
@@ -40,97 +44,98 @@ export const MOCK_STORES: StoreOption[] = [
 
 export const MOCK_READINGS: ReadingsResponse = {
   date: fmt(today),
-  total_machines: 6,
+  total_machines: 8,
   items: [
+    // ── 大安店 ───────────────────────────────────────────────
     {
-      store_name: '大安店',
-      store_id: 1,
-      machine_name: '01號機',
-      cpu_id: 'AA000000001',
+      store_name: '大安店', store_id: 1,
+      machine_name: '01號機',       // 娃娃機（預設 claw）
+      cpu_id: 'MOCK_CLAW_001',
       clawmachine_id: 101,
-      coin_play_count: 38,
-      epay_play_count: 12,
-      gift_play_count: 0,
-      gift_out_count: 3,
-      free_play_count: 0,
+      coin_play_count: 38, epay_play_count: 12,
+      gift_play_count: 0,  gift_out_count: 3, free_play_count: 0,
       total_play_count: 50,
       first_reading_time: `${fmt(today)}T08:01:00`,
-      last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:01:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:01:00`,
     },
     {
-      store_name: '大安店',
-      store_id: 1,
-      machine_name: '02號機',
-      cpu_id: 'AA000000002',
+      store_name: '大安店', store_id: 1,
+      machine_name: '02號機',       // 娃娃機（預設 claw）
+      cpu_id: 'MOCK_CLAW_002',
       clawmachine_id: 102,
-      coin_play_count: 21,
-      epay_play_count: 5,
-      gift_play_count: 0,
-      gift_out_count: 1,
-      free_play_count: 0,
+      coin_play_count: 21, epay_play_count: 5,
+      gift_play_count: 0,  gift_out_count: 1, free_play_count: 0,
       total_play_count: 26,
       first_reading_time: `${fmt(today)}T08:02:00`,
-      last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:02:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:02:00`,
     },
     {
-      store_name: '大安店',
-      store_id: 1,
-      machine_name: '03號機',
-      cpu_id: 'AA000000003',
+      store_name: '大安店', store_id: 1,
+      machine_name: '03號機',       // 扭蛋機（MOCK_GACHA_001 → gacha）
+      cpu_id: 'MOCK_GACHA_001',
       clawmachine_id: 103,
-      coin_play_count: 0,
-      epay_play_count: 0,
-      gift_play_count: 0,
-      gift_out_count: 0,
-      free_play_count: 0,
-      total_play_count: 0,
-      first_reading_time: `${daysAgo(1)}T22:00:00`,
-      last_reading_time: `${daysAgo(1)}T23:00:00`,
+      coin_play_count: 30, epay_play_count: 10,
+      gift_play_count: 0,  gift_out_count: 8, free_play_count: 0,
+      total_play_count: 40,
+      first_reading_time: `${fmt(today)}T08:03:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:03:00`,
     },
     {
-      store_name: '信義店',
-      store_id: 2,
-      machine_name: '01號機',
-      cpu_id: 'BB000000001',
+      store_name: '大安店', store_id: 1,
+      machine_name: '04號機',       // 打地鼠（MOCK_WHACK_001 → whack）— 離線
+      cpu_id: 'MOCK_WHACK_001',
+      clawmachine_id: 104,
+      coin_play_count: 0, epay_play_count: 0,
+      gift_play_count: 0, gift_out_count: 0, free_play_count: 0,
+      total_play_count: 0,
+      first_reading_time: `${daysAgo(1)}T20:00:00`,
+      last_reading_time:  `${daysAgo(1)}T23:00:00`,  // 昨天就斷線
+    },
+
+    // ── 信義店 ───────────────────────────────────────────────
+    {
+      store_name: '信義店', store_id: 2,
+      machine_name: '01號機',       // 娃娃機（預設 claw）
+      cpu_id: 'MOCK_CLAW_003',
       clawmachine_id: 201,
-      coin_play_count: 55,
-      epay_play_count: 20,
-      gift_play_count: 0,
-      gift_out_count: 5,
-      free_play_count: 0,
+      coin_play_count: 55, epay_play_count: 20,
+      gift_play_count: 0,  gift_out_count: 5, free_play_count: 0,
       total_play_count: 75,
       first_reading_time: `${fmt(today)}T08:05:00`,
-      last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:05:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:05:00`,
     },
     {
-      store_name: '信義店',
-      store_id: 2,
-      machine_name: '02號機',
-      cpu_id: 'BB000000002',
+      store_name: '信義店', store_id: 2,
+      machine_name: '02號機',       // 搖馬機（MOCK_ROCKING_001 → rocking）
+      cpu_id: 'MOCK_ROCKING_001',
       clawmachine_id: 202,
-      coin_play_count: 42,
-      epay_play_count: 8,
-      gift_play_count: 0,
-      gift_out_count: 4,
-      free_play_count: 0,
+      coin_play_count: 45, epay_play_count: 5,
+      gift_play_count: 0,  gift_out_count: 0, free_play_count: 0,
       total_play_count: 50,
       first_reading_time: `${fmt(today)}T08:06:00`,
-      last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:06:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:06:00`,
     },
     {
-      store_name: '信義店',
-      store_id: 2,
-      machine_name: '03號機',
-      cpu_id: 'BB000000003',
+      store_name: '信義店', store_id: 2,
+      machine_name: '03號機',       // 彈珠檯（MOCK_PINBALL_001 → pinball）
+      cpu_id: 'MOCK_PINBALL_001',
       clawmachine_id: 203,
-      coin_play_count: 18,
-      epay_play_count: 3,
-      gift_play_count: 0,
-      gift_out_count: 2,
-      free_play_count: 0,
-      total_play_count: 21,
+      coin_play_count: 80, epay_play_count: 20,
+      gift_play_count: 0,  gift_out_count: 0, free_play_count: 0,
+      total_play_count: 100,
       first_reading_time: `${fmt(today)}T08:07:00`,
-      last_reading_time: `${fmt(today)}T${String(today.getHours()).padStart(2, '0')}:07:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:07:00`,
+    },
+    {
+      store_name: '信義店', store_id: 2,
+      machine_name: '04號機',       // 販賣機（MOCK_VENDING_001 → vending）
+      cpu_id: 'MOCK_VENDING_001',
+      clawmachine_id: 204,
+      coin_play_count: 20, epay_play_count: 10,
+      gift_play_count: 0,  gift_out_count: 0, free_play_count: 0,
+      total_play_count: 30,
+      first_reading_time: `${fmt(today)}T08:08:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:08:00`,
     },
   ],
 };
@@ -145,39 +150,57 @@ export const MOCK_BALANCE: BalanceResponse = {
   fee_summary: null,
 };
 
+// ─────────────────────────────────────────────────────────
+// 機台定義（供 payments mock 使用）
+//   coinPrice: null → 販賣機（直接用金額，不靠 count×price）
+// ─────────────────────────────────────────────────────────
+interface MockMachine {
+  name: string; store: string; cpu: string;
+  coin: number; card: number; prize: number;
+  coinPrice: number | null;
+}
+
+const MOCK_MACHINES: MockMachine[] = [
+  // 大安店
+  { name: '01號機', store: '大安店', cpu: 'MOCK_CLAW_001',    coin: 1140, card: 360, prize: 12, coinPrice: 30  },
+  { name: '02號機', store: '大安店', cpu: 'MOCK_CLAW_002',    coin: 630,  card: 150, prize: 4,  coinPrice: 30  },
+  { name: '03號機', store: '大安店', cpu: 'MOCK_GACHA_001',   coin: 900,  card: 300, prize: 24, coinPrice: 30  },
+  { name: '04號機', store: '大安店', cpu: 'MOCK_WHACK_001',   coin: 200,  card: 50,  prize: 5,  coinPrice: 10  },
+  // 信義店
+  { name: '01號機', store: '信義店', cpu: 'MOCK_CLAW_003',    coin: 1650, card: 600, prize: 18, coinPrice: 30  },
+  { name: '02號機', store: '信義店', cpu: 'MOCK_ROCKING_001', coin: 450,  card: 50,  prize: 0,  coinPrice: 10  },
+  { name: '03號機', store: '信義店', cpu: 'MOCK_PINBALL_001', coin: 800,  card: 200, prize: 0,  coinPrice: 10  },
+  { name: '04號機', store: '信義店', cpu: 'MOCK_VENDING_001', coin: 600,  card: 400, prize: 0,  coinPrice: null },
+];
+
 const makePaymentItems = (startDate: string, endDate: string) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
   const items = [];
-  const machines = [
-    { name: '01號機', store: '大安店', cpu: 'AA000000001', coin: 380, card: 120, prize: 12 },
-    { name: '02號機', store: '大安店', cpu: 'AA000000002', coin: 210, card: 50,  prize: 6  },
-    { name: '03號機', store: '大安店', cpu: 'AA000000003', coin: 60,  card: 0,   prize: 1  },
-    { name: '01號機', store: '信義店', cpu: 'BB000000001', coin: 550, card: 200, prize: 18 },
-    { name: '02號機', store: '信義店', cpu: 'BB000000002', coin: 420, card: 80,  prize: 14 },
-    { name: '03號機', store: '信義店', cpu: 'BB000000003', coin: 180, card: 30,  prize: 5  },
-  ];
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = fmt(new Date(d));
-    for (const m of machines) {
+    for (const m of MOCK_MACHINES) {
       const factor = 0.7 + Math.random() * 0.6;
       const coin = Math.round(m.coin * factor / 10) * 10;
       const card = Math.round(m.card * factor / 10) * 10;
       const prize = Math.round(m.prize * factor);
+      // 投幣次數：有單價就除，販賣機用估算件數
+      const cardPlays = m.coinPrice ? Math.round(card / m.coinPrice) : Math.round(card / 20);
+      const totalTxn  = m.coinPrice ? Math.round((coin + card) / m.coinPrice) : Math.round((coin + card) / 20);
       items.push({
         machine_name: m.name,
-        product_name: '夾娃娃',
+        product_name: '遊戲收入',
         coin_amount: coin,
         card_amount: card,
         total_revenue: coin + card,
         prize_count: prize,
         cost: Math.round((coin + card) * 0.3),
-        average_prize_rate: prize > 0 ? Math.round(((coin + card) / prize)) : 0,
+        average_prize_rate: prize > 0 ? Math.round((coin + card) / prize) : 0,
         gift_play_count: 0,
         free_play_count: 0,
-        card_play_count: card / 10,
-        transaction_count: (coin + card) / 10,
+        card_play_count: cardPlays,
+        transaction_count: totalTxn,
         machine_id: m.cpu,
         card_machine_number: '',
         store_name: m.store,
@@ -231,37 +254,37 @@ export const MOCK_ACTIVITY: ActivityResponse = {
     {
       type: 'income',
       date: daysAgo(1),
-      amount: 6720,
+      amount: 8640,
       description: '每日營收入帳',
-      details: { order_no: 'DEMO-001', before_amount: 21820, after_amount: 28540 },
+      details: { order_no: 'DEMO-001', before_amount: 19900, after_amount: 28540 },
     },
     {
       type: 'withdrawal',
       date: daysAgo(3),
       amount: -10000,
       description: '提領申請',
-      details: { order_no: 'DEMO-002', before_amount: 31820, after_amount: 21820 },
+      details: { order_no: 'DEMO-002', before_amount: 29900, after_amount: 19900 },
     },
     {
       type: 'income',
       date: daysAgo(4),
-      amount: 8350,
+      amount: 9350,
       description: '每日營收入帳',
-      details: { order_no: 'DEMO-003', before_amount: 23470, after_amount: 31820 },
+      details: { order_no: 'DEMO-003', before_amount: 20550, after_amount: 29900 },
     },
     {
       type: 'income',
       date: daysAgo(5),
       amount: 7210,
       description: '每日營收入帳',
-      details: { order_no: 'DEMO-004', before_amount: 16260, after_amount: 23470 },
+      details: { order_no: 'DEMO-004', before_amount: 13340, after_amount: 20550 },
     },
     {
       type: 'income',
       date: daysAgo(6),
-      amount: 5980,
+      amount: 6980,
       description: '每日營收入帳',
-      details: { order_no: 'DEMO-005', before_amount: 10280, after_amount: 16260 },
+      details: { order_no: 'DEMO-005', before_amount: 6360, after_amount: 13340 },
     },
   ],
   total_count: 5,
