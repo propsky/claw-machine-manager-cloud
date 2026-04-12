@@ -17,13 +17,13 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 function App() {
-  // 主題初始化（預設淺色）
+  // 主題初始化（預設深色）
   useEffect(() => {
     const saved = localStorage.getItem('claw_theme');
-    if (saved === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
+    if (saved === 'light') {
       document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
     }
   }, []);
 
