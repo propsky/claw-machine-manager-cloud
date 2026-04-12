@@ -12,6 +12,18 @@ import { Toast, ToastType } from '../components/Toast';
 // 版本更新記錄
 const CHANGELOG = [
   {
+    version: '3.3.0',
+    date: '2026-04-12',
+    features: [
+      '多機台類型支援：娃娃機、扭蛋機、打地鼠、搖馬機、彈珠檯、販賣機',
+      '機台卡片顯示類型圖示與名稱',
+      '機台監控新增類型篩選列',
+      '營收報表加入機台類型篩選與圖示',
+      'Dashboard 健康狀態顯示機台類型分佈',
+      '訪客模式擴充多機型示範資料',
+    ]
+  },
+  {
     version: '3.2.2',
     date: '2026-04-02',
     features: [
