@@ -85,11 +85,11 @@ export const MOCK_READINGS: ReadingsResponse = {
       machine_name: '04號機',       // 打地鼠（MOCK_WHACK_001 → whack）— 離線
       cpu_id: 'MOCK_WHACK_001',
       clawmachine_id: 104,
-      coin_play_count: 0, epay_play_count: 0,
-      gift_play_count: 0, gift_out_count: 0, free_play_count: 0,
-      total_play_count: 0,
-      first_reading_time: `${daysAgo(1)}T20:00:00`,
-      last_reading_time:  `${daysAgo(1)}T23:00:00`,  // 昨天就斷線
+      coin_play_count: 25, epay_play_count: 8,
+      gift_play_count: 0,  gift_out_count: 4, free_play_count: 0,
+      total_play_count: 33,
+      first_reading_time: `${fmt(today)}T08:04:00`,
+      last_reading_time:  `${fmt(today)}T${todayHH}:04:00`,
     },
 
     // ── 信義店 ───────────────────────────────────────────────
