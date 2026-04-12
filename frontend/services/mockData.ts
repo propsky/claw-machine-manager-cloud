@@ -86,7 +86,7 @@ export const MOCK_READINGS: ReadingsResponse = {
       cpu_id: 'MOCK_WHACK_001',
       clawmachine_id: 104,
       coin_play_count: 25, epay_play_count: 8,
-      gift_play_count: 0,  gift_out_count: 4, free_play_count: 0,
+      gift_play_count: 0,  gift_out_count: 0, free_play_count: 0,
       total_play_count: 33,
       first_reading_time: `${fmt(today)}T08:04:00`,
       last_reading_time:  `${fmt(today)}T${todayHH}:04:00`,
@@ -165,7 +165,7 @@ const MOCK_MACHINES: MockMachine[] = [
   { name: '01號機', store: '大安店', cpu: 'MOCK_CLAW_001',    coin: 1140, card: 360, prize: 12, coinPrice: 30  },
   { name: '02號機', store: '大安店', cpu: 'MOCK_CLAW_002',    coin: 630,  card: 150, prize: 4,  coinPrice: 30  },
   { name: '03號機', store: '大安店', cpu: 'MOCK_GACHA_001',   coin: 900,  card: 300, prize: 24, coinPrice: 30  },
-  { name: '04號機', store: '大安店', cpu: 'MOCK_WHACK_001',   coin: 200,  card: 50,  prize: 5,  coinPrice: 10  },
+  { name: '04號機', store: '大安店', cpu: 'MOCK_WHACK_001',   coin: 200,  card: 50,  prize: 0,  coinPrice: 10  },
   // 信義店
   { name: '01號機', store: '信義店', cpu: 'MOCK_CLAW_003',    coin: 1650, card: 600, prize: 18, coinPrice: 30  },
   { name: '02號機', store: '信義店', cpu: 'MOCK_ROCKING_001', coin: 450,  card: 50,  prize: 0,  coinPrice: 10  },
