@@ -107,6 +107,20 @@ export const Settings: React.FC = () => {
   const [showChangelog, setShowChangelog] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
 
+  // 主題切換
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('claw_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('claw_theme', 'light');
+    }
+  };
+
   // PWA 安裝相關
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
@@ -323,7 +337,7 @@ export const Settings: React.FC = () => {
             <span className="material-symbols-outlined text-primary mt-0.5">visibility</span>
             <div>
               <p className="text-primary font-bold text-sm">訪客體驗模式</p>
-              <p className="text-white/50 text-xs mt-0.5">目前顯示的是示範資料，不會連接真實機台。若要使用完整功能，請登入正式帳號。</p>
+              <p className="text-slate-500 dark:text-white/50 text-xs mt-0.5">目前顯示的是示範資料，不會連接真實機台。若要使用完整功能，請登入正式帳號。</p>
             </div>
           </div>
         )}
@@ -337,11 +351,11 @@ export const Settings: React.FC = () => {
 
         {/* Account Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">帳戶</h3>
-          <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
-            <button 
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">帳戶</h3>
+          <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
+            <button
               onClick={() => { loadProfile(); setShowProfileEdit(true); }}
-              className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors border-b border-white/5"
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors border-b border-slate-100 dark:border-white/5"
             >
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-primary/20 flex items-center justify-center">
@@ -349,38 +363,38 @@ export const Settings: React.FC = () => {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold">個人資料</p>
-                  <p className="text-xs text-white/40">管理您的基本資訊</p>
+                  <p className="text-xs text-slate-400 dark:text-white/40">管理您的基本資訊</p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-white/20">chevron_right</span>
+              <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
             </button>
-            
+
             {/* 銀行帳戶 - 可點擊展開 */}
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-4">
-                  <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white/60">account_balance</span>
+                  <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-slate-500 dark:text-white/60">account_balance</span>
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-bold">收款銀行帳戶</p>
-                    <p className="text-xs text-white/40">{defaultDisplay}</p>
+                    <p className="text-xs text-slate-400 dark:text-white/40">{defaultDisplay}</p>
                   </div>
                 </div>
               </div>
 
               {/* 銀行帳戶列表 */}
               {loading ? (
-                <div className="text-center py-4 text-white/40 text-sm">載入中...</div>
+                <div className="text-center py-4 text-slate-400 dark:text-white/40 text-sm">載入中...</div>
               ) : bankAccounts.length > 0 ? (
                 <div className="space-y-2 mt-4">
                   {bankAccounts.map((account) => (
-                    <div 
-                      key={account.id} 
+                    <div
+                      key={account.id}
                       className={`p-3 rounded-lg border ${
-                        account.is_default 
-                          ? 'border-primary/50 bg-primary/10' 
-                          : 'border-white/5 bg-white/5'
+                        account.is_default
+                          ? 'border-primary/50 bg-primary/10'
+                          : 'border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -389,10 +403,10 @@ export const Settings: React.FC = () => {
                             {account.bank_name}
                             {account.is_default && <span className="ml-2 text-xs text-primary">(預設)</span>}
                           </p>
-                          <p className="text-xs text-white/40">
+                          <p className="text-xs text-slate-400 dark:text-white/40">
                             {account.branch_name || ''} {account.account_number}
                           </p>
-                          <p className="text-xs text-white/40">{account.account_holder_name}</p>
+                          <p className="text-xs text-slate-400 dark:text-white/40">{account.account_holder_name}</p>
                         </div>
                         <div className="flex gap-2">
                           {!account.is_default && (
@@ -415,7 +429,7 @@ export const Settings: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-center py-4 text-white/40 text-sm">尚未設定銀行帳戶</p>
+                <p className="text-center py-4 text-slate-400 dark:text-white/40 text-sm">尚未設定銀行帳戶</p>
               )}
 
               {/* 新增按鈕 */}
@@ -434,18 +448,18 @@ export const Settings: React.FC = () => {
 
         {/* 新增表單 */}
         {showAddForm && (
-          <div className="bg-card-dark rounded-xl border border-white/5 p-4 space-y-4">
+          <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 p-4 space-y-4 shadow-sm">
             <h4 className="text-sm font-bold">新增銀行帳戶</h4>
-            
+
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* 銀行代碼 */}
               <div>
-                <label className="block text-xs text-white/40 mb-1">銀行</label>
+                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">銀行</label>
                 <select
                   value={formData.bank_code}
                   onChange={(e) => handleBankCodeChange(e.target.value)}
                   required
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
                 >
                   <option value="">選擇銀行</option>
                   {BANK_CODES.map((bank) => (
@@ -458,39 +472,39 @@ export const Settings: React.FC = () => {
 
               {/* 分行名稱 */}
               <div>
-                <label className="block text-xs text-white/40 mb-1">分行名稱（選填）</label>
+                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">分行名稱（選填）</label>
                 <input
                   type="text"
                   value={formData.branch_name}
                   onChange={(e) => setFormData({ ...formData, branch_name: e.target.value })}
                   placeholder="例如：桃園分行"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
                 />
               </div>
 
               {/* 帳號 */}
               <div>
-                <label className="block text-xs text-white/40 mb-1">帳號</label>
+                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">帳號</label>
                 <input
                   type="text"
                   value={formData.account_number}
                   onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
                   placeholder="請輸入帳號"
                   required
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
                 />
               </div>
 
               {/* 戶名 */}
               <div>
-                <label className="block text-xs text-white/40 mb-1">戶名</label>
+                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">戶名</label>
                 <input
                   type="text"
                   value={formData.account_holder_name}
                   onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
                   placeholder="請輸入戶名"
                   required
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
                 />
               </div>
 
@@ -501,7 +515,7 @@ export const Settings: React.FC = () => {
                   id="is_default"
                   checked={formData.is_default}
                   onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
-                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
+                  className="w-4 h-4 rounded border-slate-300 dark:border-white/20 bg-white dark:bg-white/5 text-primary focus:ring-primary"
                 />
                 <label htmlFor="is_default" className="text-sm">設為預設帳戶</label>
               </div>
@@ -521,7 +535,7 @@ export const Settings: React.FC = () => {
                       is_default: false,
                     });
                   }}
-                  className="flex-1 py-2 bg-white/10 text-white rounded-lg text-sm font-bold"
+                  className="flex-1 py-2 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-white rounded-lg text-sm font-bold"
                 >
                   取消
                 </button>
@@ -538,45 +552,61 @@ export const Settings: React.FC = () => {
 
         {/* Preferences Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">偏好設定</h3>
-          <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-white/5">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">偏好設定</h3>
+          <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
+            {/* 外觀主題 */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/5">
               <div className="flex items-center gap-4">
-                <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-white/60">notifications</span>
+                <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">{isDark ? 'dark_mode' : 'light_mode'}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold">外觀主題</p>
+                  <p className="text-xs text-slate-400 dark:text-white/40">{isDark ? '深色模式' : '淺色模式'}</p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer" onClick={toggleTheme}>
+                <input type="checkbox" className="sr-only peer" checked={isDark} onChange={toggleTheme} />
+                <div className="w-11 h-6 bg-slate-200 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-4">
+                <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">notifications</span>
                 </div>
                 <div>
                   <p className="text-sm font-bold">通知設定</p>
-                  <p className="text-xs text-white/40">機台異常即時告警</p>
+                  <p className="text-xs text-slate-400 dark:text-white/40">機台異常即時告警</p>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <div className="w-11 h-6 bg-slate-200 dark:bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
               </label>
             </div>
-            <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
+            <button className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
               <div className="flex items-center gap-4">
-                <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-white/60">language</span>
+                <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">language</span>
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold">系統語言</p>
-                  <p className="text-xs text-white/40">繁體中文</p>
+                  <p className="text-xs text-slate-400 dark:text-white/40">繁體中文</p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-white/20">chevron_right</span>
+              <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
             </button>
           </div>
         </section>
 
         {/* 安裝 App Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">安裝 App</h3>
-          <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">安裝 App</h3>
+          <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
             <button
               onClick={() => setShowInstall(true)}
-              className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-primary/20 flex items-center justify-center">
@@ -584,14 +614,14 @@ export const Settings: React.FC = () => {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold">加到手機桌面</p>
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-slate-400 dark:text-white/40">
                     {isInStandaloneMode ? '已安裝為 App' : '掃碼或查看安裝說明'}
                   </p>
                 </div>
               </div>
               {isInStandaloneMode
                 ? <span className="text-xs text-primary px-2 py-1 bg-primary/10 rounded-md">已安裝</span>
-                : <span className="material-symbols-outlined text-white/20">chevron_right</span>
+                : <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
               }
             </button>
           </div>
@@ -599,25 +629,25 @@ export const Settings: React.FC = () => {
 
         {/* About Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 px-1">關於</h3>
-          <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">關於</h3>
+          <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
             {/* 版本資訊 */}
             <div className="flex items-center justify-between p-4 select-none" onClick={handleVersionTap}>
               <div className="flex items-center gap-4">
-                <div className="size-10 rounded-full bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-white/60">info</span>
+                <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">info</span>
                 </div>
                 <div>
                   <p className="text-sm font-bold">版本資訊</p>
-                  <p className="text-xs text-white/40">Version {__APP_VERSION__}</p>
+                  <p className="text-xs text-slate-400 dark:text-white/40">Version {__APP_VERSION__}</p>
                 </div>
               </div>
-              <span className="text-xs text-white/20 px-2 py-1 bg-white/5 rounded-md font-mono">最新版本</span>
+              <span className="text-xs text-slate-400 dark:text-white/20 px-2 py-1 bg-slate-100 dark:bg-white/5 rounded-md font-mono">最新版本</span>
             </div>
-            
+
             {/* 更新記錄按鈕 */}
-            <div 
-              className="flex items-center justify-between p-4 border-t border-white/5 cursor-pointer hover:bg-white/5"
+            <div
+              className="flex items-center justify-between p-4 border-t border-slate-100 dark:border-white/5 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5"
               onClick={() => setShowChangelog(true)}
             >
               <div className="flex items-center gap-4">
@@ -626,37 +656,37 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold">更新記錄</p>
-                  <p className="text-xs text-white/40">查看近 5 次版本更新</p>
+                  <p className="text-xs text-slate-400 dark:text-white/40">查看近 5 次版本更新</p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-white/20">chevron_right</span>
+              <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
             </div>
           </div>
         </section>
 
         {/* 關於我們 */}
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold text-white/40 uppercase tracking-wider px-1">關於我們</h2>
+          <h2 className="text-xs font-semibold text-slate-400 dark:text-white/40 uppercase tracking-wider px-1">關於我們</h2>
           <a
             href="https://www.propskynet.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full bg-white/5 hover:bg-white/10 text-white py-4 rounded-xl border border-white/10 transition-all flex items-center gap-3 px-4 active:scale-[0.98]"
+            className="w-full bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 text-slate-900 dark:text-white py-4 rounded-xl border border-slate-200 dark:border-white/10 shadow-sm transition-all flex items-center gap-3 px-4 active:scale-[0.98]"
           >
             <img src="/propsky-logo.png" alt="Propsky" className="h-8 object-contain" />
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold">擎天有限公司</p>
-              <p className="text-xs text-white/40">www.propskynet.com</p>
+              <p className="text-xs text-slate-400 dark:text-white/40">www.propskynet.com</p>
             </div>
-            <span className="material-symbols-outlined text-white/30">open_in_new</span>
+            <span className="material-symbols-outlined text-slate-300 dark:text-white/30">open_in_new</span>
           </a>
-          <div className="bg-white/5 rounded-xl border border-white/10 px-4 py-3 space-y-1">
-            <p className="text-xs text-white/60">擎天娃娃機管理平台，提供雲端物聯卡、後台管理系統、電子支付整合與行銷解決方案。</p>
+          <div className="bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 px-4 py-3 space-y-1">
+            <p className="text-xs text-slate-500 dark:text-white/60">擎天娃娃機管理平台，提供雲端物聯卡、後台管理系統、電子支付整合與行銷解決方案。</p>
             <a
               href="https://lin.ee/Mz1uIEc"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-green-400 hover:text-green-300 mt-1"
+              className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 hover:text-green-500 dark:hover:text-green-300 mt-1"
             >
               <span className="material-symbols-outlined text-base">chat</span>
               加入 LINE 官方帳號
@@ -668,12 +698,12 @@ export const Settings: React.FC = () => {
         <section className="pt-2">
           <button
             onClick={() => { logout(); navigate('/login', { replace: true }); }}
-            className="w-full bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+            className="w-full bg-white dark:bg-white/5 hover:bg-danger/10 text-danger font-bold py-4 rounded-xl border border-danger/20 shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             <span className="material-symbols-outlined">logout</span>
             登出帳號
           </button>
-          <p className="text-center text-[10px] text-white/20 mt-6">擎天智慧販賣機管理 © 2026</p>
+          <p className="text-center text-[10px] text-slate-300 dark:text-white/20 mt-6">擎天智慧販賣機管理 © 2026</p>
         </section>
       </main>
 
@@ -690,44 +720,44 @@ export const Settings: React.FC = () => {
       {showProfileEdit && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowProfileEdit(false)}></div>
-          <div className="relative w-full max-w-[430px] bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col pb-10 animate-slide-up">
+          <div className="relative w-full max-w-[430px] bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 flex flex-col pb-10 animate-slide-up">
             <div className="flex h-1.5 w-full items-center justify-center py-4">
-              <div className="h-1.5 w-12 rounded-full bg-white/20"></div>
+              <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-white/20"></div>
             </div>
             <div className="px-6 pb-4">
-              <h1 className="text-white text-xl font-bold text-center">個人資料</h1>
-              <p className="text-white/50 text-sm text-center mt-1">填寫完整以便提領</p>
+              <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">個人資料</h1>
+              <p className="text-slate-500 dark:text-white/50 text-sm text-center mt-1">填寫完整以便提領</p>
             </div>
             <form onSubmit={handleProfileSubmit} className="px-6 space-y-4">
               <div>
-                <label className="text-white/70 text-sm font-medium block mb-2">真實姓名</label>
+                <label className="text-slate-600 dark:text-white/70 text-sm font-medium block mb-2">真實姓名</label>
                 <input
                   type="text"
                   value={profileForm.real_name}
                   onChange={e => setProfileForm({...profileForm, real_name: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3 px-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                   placeholder="請輸入真實姓名"
                   required
                 />
               </div>
               <div>
-                <label className="text-white/70 text-sm font-medium block mb-2">聯絡電話</label>
+                <label className="text-slate-600 dark:text-white/70 text-sm font-medium block mb-2">聯絡電話</label>
                 <input
                   type="tel"
                   value={profileForm.phone}
                   onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3 px-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                   placeholder="請輸入聯絡電話"
                   required
                 />
               </div>
               <div>
-                <label className="text-white/70 text-sm font-medium block mb-2">身份證字號</label>
+                <label className="text-slate-600 dark:text-white/70 text-sm font-medium block mb-2">身份證字號</label>
                 <input
                   type="text"
                   value={profileForm.id_card_number}
                   onChange={e => setProfileForm({...profileForm, id_card_number: e.target.value.toUpperCase()})}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3 px-4 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                   placeholder="請輸入身份證字號"
                   maxLength={10}
                   required
@@ -737,7 +767,7 @@ export const Settings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowProfileEdit(false)}
-                  className="flex-1 bg-white/5 hover:bg-white/10 text-white font-medium py-4 rounded-xl transition-colors"
+                  className="flex-1 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-white font-medium py-4 rounded-xl transition-colors"
                 >
                   取消
                 </button>
@@ -758,23 +788,23 @@ export const Settings: React.FC = () => {
       {showChangelog && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowChangelog(false)}></div>
-          <div className="relative w-full max-w-md bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-white/10">
-              <h2 className="text-lg font-bold text-white">更新記錄</h2>
+          <div className="relative w-full max-w-md bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/10">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">更新記錄</h2>
               <button onClick={() => setShowChangelog(false)} className="text-slate-400">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {CHANGELOG.map((item) => (
-                <div key={item.version} className="bg-white/5 rounded-xl p-4">
+                <div key={item.version} className="bg-slate-50 dark:bg-white/5 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-primary font-bold">v{item.version}</span>
-                    <span className="text-xs text-white/40">{item.date}</span>
+                    <span className="text-xs text-slate-400 dark:text-white/40">{item.date}</span>
                   </div>
                   <ul className="space-y-1">
                     {item.features.map((feature, idx) => (
-                      <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
+                      <li key={idx} className="text-sm text-slate-600 dark:text-white/70 flex items-start gap-2">
                         <span className="text-primary mt-1">•</span>
                         {feature}
                       </li>
@@ -790,14 +820,14 @@ export const Settings: React.FC = () => {
       {showInstall && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowInstall(false)}></div>
-          <div className="relative w-full max-w-md bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col">
+          <div className="relative w-full max-w-md bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 flex flex-col">
             <div className="flex h-1.5 w-full items-center justify-center py-4">
-              <div className="h-1.5 w-12 rounded-full bg-white/20"></div>
+              <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-white/20"></div>
             </div>
             <div className="flex items-center justify-between px-6 pb-4">
               <h2 className="text-lg font-bold">加到手機桌面</h2>
               <button onClick={() => setShowInstall(false)}>
-                <span className="material-symbols-outlined text-white/40">close</span>
+                <span className="material-symbols-outlined text-slate-400 dark:text-white/40">close</span>
               </button>
             </div>
 
@@ -812,7 +842,7 @@ export const Settings: React.FC = () => {
 
               {/* QR Code */}
               <div className="flex flex-col items-center gap-3">
-                <p className="text-xs text-white/40">掃描 QR Code 在其他裝置開啟</p>
+                <p className="text-xs text-slate-400 dark:text-white/40">掃描 QR Code 在其他裝置開啟</p>
                 <div className="p-3 bg-white rounded-2xl">
                   <QRCodeSVG
                     value={profileData?.id ? `${appUrl}?ref=${profileData.id}` : appUrl}
@@ -822,7 +852,7 @@ export const Settings: React.FC = () => {
                     level="M"
                   />
                 </div>
-                <p className="text-[11px] text-white/30 font-mono">
+                <p className="text-[11px] text-slate-300 dark:text-white/30 font-mono">
                   {profileData?.id ? `${appUrl}?ref=${profileData.id}` : appUrl}
                 </p>
               </div>
@@ -841,7 +871,7 @@ export const Settings: React.FC = () => {
               {/* iOS 安裝說明 */}
               {isIOS && !isInStandaloneMode && (
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest">iPhone / iPad 安裝步驟</p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-white/60 uppercase tracking-widest">iPhone / iPad 安裝步驟</p>
                   <div className="space-y-2">
                     {[
                       { icon: 'open_in_browser', text: '用 Safari 開啟此頁' },
@@ -849,20 +879,20 @@ export const Settings: React.FC = () => {
                       { icon: 'add_box', text: '選「加入主畫面」' },
                       { icon: 'check_circle', text: '確認後 App 圖示出現在桌面' },
                     ].map((step, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
+                      <div key={i} className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 rounded-xl px-4 py-3">
                         <span className="material-symbols-outlined text-primary text-xl">{step.icon}</span>
-                        <span className="text-sm text-white/80">{step.text}</span>
+                        <span className="text-sm text-slate-700 dark:text-white/80">{step.text}</span>
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px] text-white/30 text-center pt-1">※ 必須使用 Safari，Chrome 不支援 iOS 安裝</p>
+                  <p className="text-[11px] text-slate-300 dark:text-white/30 text-center pt-1">※ 必須使用 Safari，Chrome 不支援 iOS 安裝</p>
                 </div>
               )}
 
               {/* 非 iOS 且無 install prompt 的說明 */}
               {!isIOS && !canInstall && !isInStandaloneMode && (
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest">Android 安裝步驟</p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-white/60 uppercase tracking-widest">Android 安裝步驟</p>
                   <div className="space-y-2">
                     {[
                       { icon: 'open_in_browser', text: '用 Chrome 開啟此頁' },
@@ -870,9 +900,9 @@ export const Settings: React.FC = () => {
                       { icon: 'add_to_home_screen', text: '選「安裝應用程式」或「加到主畫面」' },
                       { icon: 'check_circle', text: '確認後 App 圖示出現在桌面' },
                     ].map((step, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
+                      <div key={i} className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 rounded-xl px-4 py-3">
                         <span className="material-symbols-outlined text-primary text-xl">{step.icon}</span>
-                        <span className="text-sm text-white/80">{step.text}</span>
+                        <span className="text-sm text-slate-700 dark:text-white/80">{step.text}</span>
                       </div>
                     ))}
                   </div>

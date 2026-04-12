@@ -17,6 +17,16 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 function App() {
+  // 主題初始化（預設淺色）
+  useEffect(() => {
+    const saved = localStorage.getItem('claw_theme');
+    if (saved === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   // 偵測 QR Code 分享來源（?ref=USER_ID 在 hash 之前）
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

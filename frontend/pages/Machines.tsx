@@ -277,15 +277,15 @@ export const Machines: React.FC = () => {
   const isLoading = loading || filterLoading;
 
   return (
-    <div className="min-h-screen bg-background-dark">
+    <div className="min-h-screen bg-background-light dark:bg-background-dark">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-background-dark/95 backdrop-blur-md px-4 pt-6 pb-2 border-b border-white/10">
+      <header className="sticky top-0 z-30 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pt-6 pb-2 border-b border-slate-200 dark:border-white/10">
         <div className="flex items-center justify-between mb-4">
           <StoreSelector
             selectedStoreId={selectedStoreId}
             onStoreChange={setSelectedStoreId}
           />
-          <h1 className="text-xl font-bold tracking-tight text-white flex-1 text-center">機台監控</h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex-1 text-center">機台監控</h1>
           <button
             onClick={() => { loadToday(true); loadFilterData(dateFilter); }}
             className="text-slate-400 hover:text-primary transition-colors w-10 flex justify-end"
@@ -301,7 +301,7 @@ export const Machines: React.FC = () => {
               key={key}
               onClick={() => setDateFilter(key)}
               className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-                dateFilter === key ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+                dateFilter === key ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
               }`}
             >
               {label}
@@ -314,7 +314,7 @@ export const Machines: React.FC = () => {
           <button
             onClick={() => setStatusFilter('all')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              statusFilter === 'all' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              statusFilter === 'all' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
             }`}
           >
             全部 {sortedMachines.length}
@@ -322,15 +322,15 @@ export const Machines: React.FC = () => {
           <button
             onClick={() => setStatusFilter('online')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              statusFilter === 'online' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              statusFilter === 'online' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
             }`}
           >
-            上線 <span className="text-neon-green ml-0.5">{onlineCount}</span>
+            上線 <span className="text-green-600 dark:text-neon-green ml-0.5">{onlineCount}</span>
           </button>
           <button
             onClick={() => setStatusFilter('offline')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              statusFilter === 'offline' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+              statusFilter === 'offline' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
             }`}
           >
             斷線 <span className="text-slate-400 ml-0.5">{offlineCount}</span>
@@ -343,7 +343,7 @@ export const Machines: React.FC = () => {
             <button
               onClick={() => setTypeFilter('all')}
               className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-                typeFilter === 'all' ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+                typeFilter === 'all' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
               }`}
             >
               全類型
@@ -356,7 +356,7 @@ export const Machines: React.FC = () => {
                   key={type}
                   onClick={() => setTypeFilter(type)}
                   className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-                    typeFilter === type ? 'bg-primary text-black' : 'bg-white/5 text-slate-300'
+                    typeFilter === type ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
                   }`}
                 >
                   {info.icon} {info.name} {count}
@@ -375,7 +375,7 @@ export const Machines: React.FC = () => {
         )}
 
         {error && (
-          <div className="bg-bright-red/10 border border-bright-red/30 rounded-xl p-4 text-bright-red text-center">
+          <div className="bg-red-50 dark:bg-bright-red/10 border border-red-200 dark:border-bright-red/30 rounded-xl p-4 text-red-600 dark:text-bright-red text-center">
             {error}
           </div>
         )}
@@ -392,7 +392,7 @@ export const Machines: React.FC = () => {
             <div
               key={`${machine.key}-${idx}`}
               onClick={() => setSelectedMachine(machine)}
-              className="bg-card-dark rounded-xl p-4 shadow-lg border border-white/10 relative overflow-hidden transition-all cursor-pointer active:scale-[0.98]"
+              className="bg-white dark:bg-card-dark rounded-xl p-4 shadow-sm dark:shadow-lg border border-slate-200 dark:border-white/10 relative overflow-hidden transition-all cursor-pointer active:scale-[0.98]"
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col gap-1">
@@ -405,19 +405,19 @@ export const Machines: React.FC = () => {
 
                   <div className="flex items-center gap-1.5 mt-1">
                     {/* 機台類型 badge */}
-                    <span className="text-xs text-slate-400 font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
                       {typeInfo.icon} {typeInfo.name}
                     </span>
                     {status === MachineStatus.ONLINE && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-neon-green/10 border border-neon-green/20">
-                        <div className="h-1.5 w-1.5 rounded-full bg-neon-green animate-pulse"></div>
-                        <span className="text-xs text-neon-green font-bold tracking-wider uppercase">上線</span>
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 dark:bg-neon-green/10 border border-green-200 dark:border-neon-green/20">
+                        <div className="h-1.5 w-1.5 rounded-full bg-green-500 dark:bg-neon-green animate-pulse"></div>
+                        <span className="text-xs text-green-600 dark:text-neon-green font-bold tracking-wider uppercase">上線</span>
                       </div>
                     )}
                     {status === MachineStatus.OFFLINE && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-bright-red/10 border border-bright-red/20">
-                        <div className="h-1.5 w-1.5 rounded-full bg-bright-red"></div>
-                        <span className="text-xs text-bright-red font-bold tracking-wider uppercase">斷線</span>
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-bright-red/10 border border-red-200 dark:border-bright-red/20">
+                        <div className="h-1.5 w-1.5 rounded-full bg-red-500 dark:bg-bright-red"></div>
+                        <span className="text-xs text-red-600 dark:text-bright-red font-bold tracking-wider uppercase">斷線</span>
                       </div>
                     )}
                   </div>
@@ -430,13 +430,13 @@ export const Machines: React.FC = () => {
               <div className="grid grid-cols-4 gap-y-4 gap-x-2">
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-500 font-medium mb-0.5">總遊玩</span>
-                  <span className="text-base font-bold tracking-tight text-white">
+                  <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
                     {machine.total_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-500 font-medium mb-0.5">投幣</span>
-                  <span className="text-base font-bold tracking-tight text-white">
+                  <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
                     ${machine.coin_amount.toLocaleString()}
                   </span>
                 </div>
@@ -448,7 +448,7 @@ export const Machines: React.FC = () => {
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-slate-500 font-medium mb-0.5">營業額</span>
-                  <span className="text-base font-bold tracking-tight text-neon-green">
+                  <span className="text-base font-bold tracking-tight text-green-600 dark:text-neon-green">
                     ${machine.revenue.toLocaleString()}
                   </span>
                 </div>
@@ -456,14 +456,14 @@ export const Machines: React.FC = () => {
                   <>
                     <div className="flex flex-col">
                       <span className="text-xs text-slate-500 font-medium mb-0.5">出獎數</span>
-                      <span className="text-base font-bold tracking-tight text-white">
+                      <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
                         {machine.gift_out_count}
                       </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-slate-500 font-medium mb-0.5">均出</span>
                       <span className={`text-base font-bold tracking-tight ${
-                        avgPayout > 800 ? 'text-bright-red font-black' : 'text-white'
+                        avgPayout > 800 ? 'text-red-600 dark:text-bright-red font-black' : 'text-slate-900 dark:text-white'
                       }`}>
                         {avgPayout > 0 ? avgPayout.toLocaleString() : '--'}
                       </span>
@@ -481,9 +481,9 @@ export const Machines: React.FC = () => {
       {selectedMachine && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70" onClick={() => setSelectedMachine(null)}></div>
-          <div className="relative w-full max-w-md bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 p-6 animate-slide-up">
+          <div className="relative w-full max-w-md bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 p-6 animate-slide-up">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">{selectedMachine.machine_name}</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedMachine.machine_name}</h2>
               <button onClick={() => setSelectedMachine(null)} className="text-slate-400">
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -492,19 +492,19 @@ export const Machines: React.FC = () => {
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">門市</span>
-                <span className="text-white">{selectedMachine.store_name}</span>
+                <span className="text-slate-900 dark:text-white">{selectedMachine.store_name}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">機台 ID</span>
-                <span className="text-white font-mono text-xs">{selectedMachine.key}</span>
+                <span className="text-slate-900 dark:text-white font-mono text-xs">{selectedMachine.key}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">總遊玩</span>
-                <span className="text-white">{selectedMachine.total_play_count}</span>
+                <span className="text-slate-900 dark:text-white">{selectedMachine.total_play_count}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">營業額</span>
-                <span className="text-neon-green">${selectedMachine.revenue.toLocaleString()}</span>
+                <span className="text-green-600 dark:text-neon-green">${selectedMachine.revenue.toLocaleString()}</span>
               </div>
             </div>
 

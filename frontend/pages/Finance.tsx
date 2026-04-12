@@ -187,20 +187,20 @@ export const Finance: React.FC = () => {
       <main className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-md mx-auto w-full">
         {/* Balance Card */}
         {localStorage.getItem('show_balance') === '1' && (
-          <section className="relative overflow-hidden rounded-xl bg-card-dark p-6 shadow-xl border border-white/5">
+          <section className="relative overflow-hidden rounded-xl bg-white dark:bg-card-dark p-6 shadow-md dark:shadow-xl border border-slate-200 dark:border-white/5">
             <div className="absolute -right-12 -top-12 size-40 bg-primary/10 rounded-full blur-3xl"></div>
             <div className="flex flex-col gap-1">
-              <span className="text-white/60 text-sm font-medium">可提領餘額</span>
+              <span className="text-slate-500 dark:text-white/60 text-sm font-medium">可提領餘額</span>
               <h2 className="text-4xl font-bold text-success tracking-tight">
                 {balanceData ? `$${availableBalance.toLocaleString()}` : '--'}
               </h2>
             </div>
-            <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-4">
+            <div className="mt-8 flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-4">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-white/40 text-sm">update</span>
-                <p className="text-white/40 text-xs">即時查詢</p>
+                <span className="material-symbols-outlined text-slate-400 dark:text-white/40 text-sm">update</span>
+                <p className="text-slate-400 dark:text-white/40 text-xs">即時查詢</p>
               </div>
-              <div className="size-8 rounded-full bg-white/5 flex items-center justify-center">
+              <div className="size-8 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
                 <span className="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
               </div>
             </div>
@@ -209,11 +209,11 @@ export const Finance: React.FC = () => {
 
         {/* Statement Card */}
         <section className="space-y-3">
-          <div className="bg-card-dark rounded-xl border border-white/5 overflow-hidden shadow-lg">
-            <div className="px-5 pt-4 pb-3 border-b border-white/5 space-y-3">
+          <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-md dark:shadow-lg">
+            <div className="px-5 pt-4 pb-3 border-b border-slate-100 dark:border-white/5 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-white">{activeMonthInfo.title}</h3>
-                <span className="text-[11px] font-medium text-white/40 tracking-tighter">週期：{activeMonthInfo.period}</span>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">{activeMonthInfo.title}</h3>
+                <span className="text-[11px] font-medium text-slate-400 dark:text-white/40 tracking-tighter">週期：{activeMonthInfo.period}</span>
               </div>
               <div className="flex gap-2 overflow-x-auto hide-scrollbar -mx-1 px-1 pb-1">
                 {filters.map((f) => (
@@ -229,7 +229,7 @@ export const Finance: React.FC = () => {
                     className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
                       selectedFilter === f.key
                         ? 'bg-primary text-background-dark'
-                        : 'bg-white/10 text-white/60 hover:bg-white/15'
+                        : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white/60 hover:bg-slate-200 dark:hover:bg-white/15'
                     }`}
                   >
                     {f.key === 'custom' && (
@@ -248,21 +248,21 @@ export const Finance: React.FC = () => {
               ) : (
                 <>
                   <div className="flex justify-between items-center">
-                    <span className="text-white/70 text-sm">總刷卡金額</span>
-                    <span className="font-bold text-white tracking-wide">${statement.total.toLocaleString()}</span>
+                    <span className="text-slate-600 dark:text-white/70 text-sm">總刷卡金額</span>
+                    <span className="font-bold text-slate-900 dark:text-white tracking-wide">${statement.total.toLocaleString()}</span>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-white/50">減：設備日租費</span>
-                      <span className="text-red-400 font-medium">-${statement.rent.toLocaleString()}</span>
+                      <span className="text-slate-500 dark:text-white/50">減：設備日租費</span>
+                      <span className="text-red-500 dark:text-red-400 font-medium">-${statement.rent.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-white/50">減：金流手續費</span>
-                      <span className="text-red-400 font-medium">-${statement.fee.toLocaleString()}</span>
+                      <span className="text-slate-500 dark:text-white/50">減：金流手續費</span>
+                      <span className="text-red-500 dark:text-red-400 font-medium">-${statement.fee.toLocaleString()}</span>
                     </div>
                   </div>
-                  <div className="pt-4 border-t border-white/10 flex justify-between items-end">
-                    <span className="text-sm font-medium text-white/90 pb-0.5">本期實際入帳</span>
+                  <div className="pt-4 border-t border-slate-100 dark:border-white/10 flex justify-between items-end">
+                    <span className="text-sm font-medium text-slate-800 dark:text-white/90 pb-0.5">本期實際入帳</span>
                     <span className="text-2xl font-bold text-primary tracking-tight">${statement.income.toLocaleString()}</span>
                   </div>
                 </>
@@ -287,15 +287,15 @@ export const Finance: React.FC = () => {
         {/* Transactions */}
         <section className="space-y-4 pb-10">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-white/40">最近帳務紀錄</h3>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40">最近帳務紀錄</h3>
             <button onClick={() => navigate('/transactions')} className="text-xs text-primary font-medium">查看全部</button>
           </div>
           {recentActivity.length === 0 ? (
-            <div className="bg-card-dark rounded-xl p-6 border border-white/5 text-center text-white/30 text-sm">
+            <div className="bg-slate-50 dark:bg-card-dark rounded-xl p-6 border border-slate-200 dark:border-white/5 text-center text-slate-400 dark:text-white/30 text-sm">
               暫無紀錄
             </div>
           ) : (
-            <div className="bg-card-dark rounded-xl overflow-hidden border border-white/5 divide-y divide-white/5">
+            <div className="bg-white dark:bg-card-dark rounded-xl overflow-hidden border border-slate-200 dark:border-white/5 divide-y divide-slate-100 dark:divide-white/5">
               {recentActivity.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-3">
@@ -309,8 +309,8 @@ export const Finance: React.FC = () => {
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">{item.description}</p>
-                      <p className="text-[10px] text-white/40">{item.date} {item.status && `・${item.status}`}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">{item.description}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-white/40">{item.date} {item.status && `・${item.status}`}</p>
                     </div>
                   </div>
                   <span className={`text-sm font-bold ${

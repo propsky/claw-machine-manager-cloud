@@ -384,7 +384,7 @@ export const Dashboard: React.FC = () => {
             className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
               selectedFilter === f.key
                 ? 'bg-primary text-background-dark'
-                : 'bg-white/10 text-slate-400 dark:text-zinc-500 hover:bg-white/15'
+                : 'bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-white/15'
             }`}
           >
             {f.label}
@@ -543,12 +543,12 @@ export const Dashboard: React.FC = () => {
         {showRevenueReport && revenueReport && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowRevenueReport(false)}></div>
-          <div className="relative w-full max-w-[430px] bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col pb-10 animate-slide-up max-h-[80vh] overflow-y-auto">
+          <div className="relative w-full max-w-[430px] bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 flex flex-col pb-10 animate-slide-up max-h-[80vh] overflow-y-auto">
             <div className="flex h-1.5 w-full items-center justify-center py-4">
-              <div className="h-1.5 w-12 rounded-full bg-white/20"></div>
+              <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-white/20"></div>
             </div>
             <div className="px-6 pb-4">
-              <h1 className="text-white text-xl font-bold text-center">📊 營收報告</h1>
+              <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">📊 營收報告</h1>
               {/* 時間篩選 */}
               <div className="flex gap-2 mt-3 justify-center">
                 {REVENUE_FILTER_LABELS.map((f) => (
@@ -558,7 +558,7 @@ export const Dashboard: React.FC = () => {
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
                       revenueFilter === f.key
                         ? 'bg-primary text-background-dark'
-                        : 'bg-white/10 text-white/50 hover:bg-white/15'
+                        : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white/50 hover:bg-slate-200 dark:hover:bg-white/15'
                     }`}
                   >
                     {f.label}
@@ -572,8 +572,8 @@ export const Dashboard: React.FC = () => {
                     onClick={() => setReportTypeFilter('all')}
                     className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
                       reportTypeFilter === 'all'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-white/5 text-white/40 hover:bg-white/10'
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white/40 hover:bg-slate-200 dark:hover:bg-white/10'
                     }`}
                   >
                     全類型
@@ -584,8 +584,8 @@ export const Dashboard: React.FC = () => {
                       onClick={() => setReportTypeFilter(t)}
                       className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
                         reportTypeFilter === t
-                          ? 'bg-white/20 text-white'
-                          : 'bg-white/5 text-white/40 hover:bg-white/10'
+                          ? 'bg-primary/20 text-primary'
+                          : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white/40 hover:bg-slate-200 dark:hover:bg-white/10'
                       }`}
                     >
                       {MACHINE_TYPE_INFO[t].icon} {MACHINE_TYPE_INFO[t].name}
@@ -601,8 +601,8 @@ export const Dashboard: React.FC = () => {
                 <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
                 {loadProgress !== null && loadProgress < 100 ? (
                   <div className="flex flex-col items-center gap-2 w-48">
-                    <p className="text-white/50 text-sm">載入中 {loadProgress}%</p>
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <p className="text-slate-500 dark:text-white/50 text-sm">載入中 {loadProgress}%</p>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary rounded-full transition-all duration-300"
                         style={{ width: `${loadProgress}%` }}
@@ -610,7 +610,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-white/50 text-sm">載入中</p>
+                  <p className="text-slate-500 dark:text-white/50 text-sm">載入中</p>
                 )}
               </div>
             )}
@@ -618,45 +618,45 @@ export const Dashboard: React.FC = () => {
             <div className={`px-6 space-y-4 ${revenueLoading ? 'hidden' : ''}`}>
               {/* 總覽數據 */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-white/50 text-xs">遊戲次數</p>
-                  <p className="text-white font-bold text-lg">{revenueReport?.totalPlays || 0}</p>
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-slate-500 dark:text-white/50 text-xs">遊戲次數</p>
+                  <p className="text-slate-900 dark:text-white font-bold text-lg">{revenueReport?.totalPlays || 0}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-white/50 text-xs">總營收</p>
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-slate-500 dark:text-white/50 text-xs">總營收</p>
                   <p className="text-primary font-bold text-lg">${(revenueReport?.totalRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
 
               {/* 現金與電支 */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-white/50 text-xs">現金收入</p>
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-slate-500 dark:text-white/50 text-xs">現金收入</p>
                   <p className="text-green-400 font-bold">${(revenueReport?.coinRevenue || 0).toLocaleString()}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-white/50 text-xs">電支收入</p>
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-slate-500 dark:text-white/50 text-xs">電支收入</p>
                   <p className="text-blue-400 font-bold">${(revenueReport?.cardRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
 
               {/* 均日營收 & 出獎率 */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-white/50 text-xs">均日營收</p>
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-slate-500 dark:text-white/50 text-xs">均日營收</p>
                   <p className="text-yellow-400 font-bold">${(revenueReport?.avgDailyRevenue || 0).toLocaleString()}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-white/50 text-xs">均出</p>
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-slate-500 dark:text-white/50 text-xs">均出</p>
                   <p className="text-purple-400 font-bold">${(revenueReport?.avgPayout || 0).toLocaleString()}</p>
                 </div>
               </div>
 
               {/* 出貨數量 */}
-              <div className="bg-white/5 rounded-xl p-3">
+              <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-white/50 text-xs">總出貨數</span>
-                  <span className="text-white font-bold">{revenueReport?.totalGiftCount || 0} 個</span>
+                  <span className="text-slate-500 dark:text-white/50 text-xs">總出貨數</span>
+                  <span className="text-slate-900 dark:text-white font-bold">{revenueReport?.totalGiftCount || 0} 個</span>
                 </div>
               </div>
 
@@ -676,14 +676,14 @@ export const Dashboard: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-green-400 font-bold">#{idx + 1}</span>
                           <div className="flex flex-col">
-                            <span className="text-white text-sm">
+                            <span className="text-slate-900 dark:text-white text-sm">
                               <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
                             </span>
-                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                            <span className="text-slate-500 dark:text-white/50 text-xs">{m.store_name}</span>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-white text-sm">{m.plays} 次遊戲</p>
+                          <p className="text-slate-900 dark:text-white text-sm">{m.plays} 次遊戲</p>
                           <p className="text-green-400 text-xs">已出貨 {m.gifts} 個</p>
                         </div>
                       </div>
@@ -704,14 +704,14 @@ export const Dashboard: React.FC = () => {
                     {revenueReport.problemMachines
                       .filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
                       .map((m, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                      <div key={idx} className="flex items-center justify-between bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-red-400 font-bold">!</span>
+                          <span className="text-red-500 dark:text-red-400 font-bold">!</span>
                           <div className="flex flex-col">
-                            <span className="text-white text-sm">
+                            <span className="text-slate-900 dark:text-white text-sm">
                               <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
                             </span>
-                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                            <span className="text-slate-500 dark:text-white/50 text-xs">{m.store_name}</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -728,28 +728,28 @@ export const Dashboard: React.FC = () => {
                 revenueReport.topMachines.filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
               ).length > 0 && (
                 <div>
-                  <p className="text-white/70 text-sm font-bold mb-2 flex items-center gap-1">
+                  <p className="text-slate-600 dark:text-white/70 text-sm font-bold mb-2 flex items-center gap-1">
                     <span>🏆</span> 營收 TOP 3
                   </p>
                   <div className="space-y-2">
                     {revenueReport.topMachines
                       .filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
                       .map((m, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                      <div key={idx} className="flex items-center justify-between bg-slate-50 dark:bg-white/5 rounded-xl p-3">
                         <div className="flex items-center gap-2">
                           <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
                             {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                           </span>
                           <div className="flex flex-col">
-                            <span className="text-white text-sm">
+                            <span className="text-slate-900 dark:text-white text-sm">
                               <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
                             </span>
-                            <span className="text-white/50 text-xs">{m.store_name}</span>
+                            <span className="text-slate-500 dark:text-white/50 text-xs">{m.store_name}</span>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-primary font-bold">${m.revenue.toLocaleString()}</p>
-                          <p className="text-white/50 text-xs">{m.plays} 次</p>
+                          <p className="text-slate-500 dark:text-white/50 text-xs">{m.plays} 次</p>
                         </div>
                       </div>
                     ))}
@@ -759,9 +759,9 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="px-6 pt-4">
-              <button 
+              <button
                 onClick={() => setShowRevenueReport(false)}
-                className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-3 rounded-xl transition-colors"
+                className="w-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-medium py-3 rounded-xl transition-colors"
               >
                 關閉
               </button>

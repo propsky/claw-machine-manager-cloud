@@ -63,20 +63,20 @@ export function StoreSelector({ selectedStoreId, onStoreChange }: StoreSelectorP
       {/* 選單按鈕 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 rounded-lg transition-colors"
       >
         <span className="text-lg">📍</span>
-        <span className="text-white font-medium truncate max-w-[150px]">
+        <span className="text-slate-900 dark:text-white font-medium truncate max-w-[150px]">
           {displayName}
         </span>
-        <span className={`text-white/50 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+        <span className={`text-slate-500 dark:text-white/50 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
           ▼
         </span>
         {/* 刷新按鈕 */}
         <button
           onClick={handleRefresh}
           disabled={isLoading}
-          className={`p-1 hover:bg-white/10 rounded ${isLoading ? 'animate-spin' : ''}`}
+          className={`p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded ${isLoading ? 'animate-spin' : ''}`}
           title="重新整理場地"
         >
           <span className="text-2xl leading-none">🔄</span>
@@ -85,22 +85,22 @@ export function StoreSelector({ selectedStoreId, onStoreChange }: StoreSelectorP
 
       {/* 下拉選單 */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-surface-dark border border-white/10 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-surface-dark border border-slate-200 dark:border-white/10 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto">
           {/* 全部場地選項 */}
           <button
             onClick={() => {
               onStoreChange(null);
               setIsOpen(false);
             }}
-            className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-2 ${
-              selectedStoreId === null ? 'bg-primary/20 text-primary' : 'text-white'
+            className={`w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 ${
+              selectedStoreId === null ? 'bg-primary/20 text-primary' : 'text-slate-900 dark:text-white'
             }`}
           >
             <span>🌐</span>
             <span className="font-medium">全部場地</span>
           </button>
 
-          <div className="border-t border-white/10" />
+          <div className="border-t border-slate-100 dark:border-white/10" />
 
           {/* 場地列表 */}
           {stores.map(store => (
@@ -110,8 +110,8 @@ export function StoreSelector({ selectedStoreId, onStoreChange }: StoreSelectorP
                 onStoreChange(store.id);
                 setIsOpen(false);
               }}
-              className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-2 ${
-                selectedStoreId === store.id ? 'bg-primary/20 text-primary' : 'text-white'
+              className={`w-full px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2 ${
+                selectedStoreId === store.id ? 'bg-primary/20 text-primary' : 'text-slate-900 dark:text-white'
               }`}
             >
               <span>📍</span>

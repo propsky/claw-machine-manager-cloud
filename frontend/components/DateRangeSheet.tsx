@@ -42,39 +42,39 @@ export const DateRangeSheet: React.FC<DateRangeSheetProps> = ({
       ></div>
 
       {/* Sheet Content */}
-      <div className="relative w-full max-w-[430px] bg-surface-dark rounded-t-2xl shadow-2xl border-t border-white/10 flex flex-col pb-10 animate-slide-up font-display">
+      <div className="relative w-full max-w-[430px] bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 flex flex-col pb-10 animate-slide-up font-display">
         {/* Handle */}
         <div className="flex h-1.5 w-full items-center justify-center py-4 z-10">
-          <div className="h-1.5 w-12 rounded-full bg-white/20"></div>
+          <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-white/20"></div>
         </div>
 
         {/* Header */}
         <div className="px-6 pt-2 pb-6 z-10">
-          <h1 className="text-white text-xl font-bold text-center">自訂日期範圍</h1>
-          <p className="text-white/50 text-sm text-center mt-1">選擇要查看的日期區間</p>
+          <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">自訂日期範圍</h1>
+          <p className="text-slate-500 dark:text-white/50 text-sm text-center mt-1">選擇要查看的日期區間</p>
         </div>
 
         {/* Content */}
         <div className="px-6 space-y-5 z-10">
           {/* Start Date */}
           <div className="flex flex-col gap-2">
-            <label className="text-white/70 text-sm font-medium">開始日期</label>
+            <label className="text-slate-600 dark:text-white/70 text-sm font-medium">開始日期</label>
             <input
               type="date"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3.5 px-4 text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all [color-scheme:dark]"
+              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3.5 px-4 text-slate-900 dark:text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:[color-scheme:dark]"
             />
           </div>
 
           {/* End Date */}
           <div className="flex flex-col gap-2">
-            <label className="text-white/70 text-sm font-medium">結束日期</label>
+            <label className="text-slate-600 dark:text-white/70 text-sm font-medium">結束日期</label>
             <input
               type="date"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3.5 px-4 text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all [color-scheme:dark]"
+              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3.5 px-4 text-slate-900 dark:text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:[color-scheme:dark]"
             />
           </div>
 
@@ -90,7 +90,7 @@ export const DateRangeSheet: React.FC<DateRangeSheetProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="w-full bg-white/5 hover:bg-white/10 text-white font-medium py-4 rounded-xl transition-colors active:scale-95"
+              className="w-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-white font-medium py-4 rounded-xl transition-colors active:scale-95"
             >
               取消
             </button>
