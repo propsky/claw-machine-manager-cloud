@@ -12,6 +12,15 @@ import { Toast, ToastType } from '../components/Toast';
 // 版本更新記錄
 const CHANGELOG = [
   {
+    version: '3.3.1',
+    date: '2026-04-13',
+    features: [
+      '新增淺色／深色主題切換',
+      '預設維持深色模式，可在設定頁偏好設定切換',
+      '主題設定儲存於本機，重新開啟 App 後保留',
+    ]
+  },
+  {
     version: '3.3.0',
     date: '2026-04-12',
     features: [
