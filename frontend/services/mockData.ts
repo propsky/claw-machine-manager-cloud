@@ -173,6 +173,16 @@ const MOCK_MACHINES: MockMachine[] = [
   { name: '04號機', store: '信義店', cpu: 'MOCK_VENDING_001', coin: 600,  card: 400, prize: 0,  coinPrice: null },
 ];
 
+/** 以日期字串 + 機台 cpu 為種子，產生固定的偽亂數（0~1），避免每次呼叫數字不一致 */
+function seededRandom(dateStr: string, cpu: string): number {
+  let h = 0;
+  const s = dateStr + cpu;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+  }
+  return ((h >>> 0) % 1000) / 1000;
+}
+
 const makePaymentItems = (startDate: string, endDate: string) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -181,7 +191,7 @@ const makePaymentItems = (startDate: string, endDate: string) => {
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = fmt(new Date(d));
     for (const m of MOCK_MACHINES) {
-      const factor = 0.7 + Math.random() * 0.6;
+      const factor = 0.7 + seededRandom(dateStr, m.cpu) * 0.6;
       const coin = Math.round(m.coin * factor / 10) * 10;
       const card = Math.round(m.card * factor / 10) * 10;
       const prize = Math.round(m.prize * factor);
@@ -218,8 +228,10 @@ const makePaymentItems = (startDate: string, endDate: string) => {
   return items;
 };
 
-export function getMockPayments(startDate: string, endDate: string): PaymentsResponse {
-  const items = makePaymentItems(startDate, endDate);
+export function getMockPayments(startDate: string, endDate: string, storeId?: number): PaymentsResponse {
+  const allItems = makePaymentItems(startDate, endDate);
+  const storeFilter = storeId === 1 ? '大安店' : storeId === 2 ? '信義店' : null;
+  const items = storeFilter ? allItems.filter(i => i.store_name === storeFilter) : allItems;
   const summary = items.reduce(
     (acc, i) => {
       acc.total_revenue += i.total_revenue;

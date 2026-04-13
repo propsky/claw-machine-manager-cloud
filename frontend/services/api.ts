@@ -134,7 +134,7 @@ export async function fetchActivity(
 }
 
 export async function fetchPayments(startDate: string, endDate: string, storeId?: number, page?: number, pageSize?: number): Promise<PaymentsResponse> {
-  if (isGuest()) return getMockPayments(startDate, endDate);
+  if (isGuest()) return getMockPayments(startDate, endDate, storeId);
   const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
   if (storeId) params.set('store_id', String(storeId));
   if (page !== undefined) params.set('page', String(page));
