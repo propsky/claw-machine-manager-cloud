@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { MachineStatus, ReadingsResponse, ReadingItem, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
+import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
 
 const PLAY_PRICE = 10;
 
-type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month';
+type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'custom';
 
 function getMachineStatus(machine: ReadingItem): MachineStatus {
   const lastTime = new Date(machine.last_reading_time);
@@ -20,7 +21,7 @@ function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function getDateRange(filter: DateFilter): { start: string; end: string; isSingleDay: boolean } {
+function getDateRange(filter: Exclude<DateFilter, 'custom'>): { start: string; end: string; isSingleDay: boolean } {
   const now = new Date();
   const today = formatDate(now);
 
@@ -86,6 +87,7 @@ const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'seven_days', label: '7天內' },
   { key: 'week', label: '本週' },
   { key: 'month', label: '本月' },
+  { key: 'custom', label: '自訂' },
 ];
 
 // 營收報表篩選
@@ -101,6 +103,9 @@ const REVENUE_CACHE_TTL = 30 * 60 * 1000; // 30 分鐘
 
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
+  const [showDateSheet, setShowDateSheet] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   // 選中的場地 ID（null = 全部場地）
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   // 用 ref 追蹤最新的 selectedFilter，避免 setInterval 閉包問題
@@ -231,11 +236,16 @@ export const Dashboard: React.FC = () => {
 
   // 篩選變更或場地切換時載入對應營收資料
   useEffect(() => {
-    loadRevenueData(selectedFilter);
-  }, [selectedFilter, selectedStoreId]);
+    if (selectedFilter === 'custom') {
+      if (customStart && customEnd) loadRevenueData('custom', { start: customStart, end: customEnd });
+    } else {
+      loadRevenueData(selectedFilter);
+    }
+  }, [selectedFilter, selectedStoreId, customStart, customEnd]);
 
-  async function loadRevenueData(filter: DateFilter) {
-    const range = getDateRange(filter);
+  async function loadRevenueData(filter: DateFilter, customRange?: { start: string; end: string }) {
+    if (filter === 'custom' && !customRange) return;
+    const range = filter === 'custom' ? { start: customRange!.start, end: customRange!.end, isSingleDay: false } : getDateRange(filter);
     setRevenueLoading(true);
 
     try {
@@ -357,8 +367,11 @@ export const Dashboard: React.FC = () => {
   }, [revenuePayments, revenueFilter]);
 
   const filterTitle = useMemo(() => {
+    if (selectedFilter === 'custom' && customStart && customEnd) {
+      return `${customStart.slice(5)} ～ ${customEnd.slice(5)} 總營收`;
+    }
     return FILTER_LABELS.find(f => f.key === selectedFilter)?.label + '總營收';
-  }, [selectedFilter]);
+  }, [selectedFilter, customStart, customEnd]);
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
@@ -380,14 +393,22 @@ export const Dashboard: React.FC = () => {
         {FILTER_LABELS.map((f) => (
           <button
             key={f.key}
-            onClick={() => setSelectedFilter(f.key)}
+            onClick={() => {
+              if (f.key === 'custom') {
+                setShowDateSheet(true);
+              } else {
+                setSelectedFilter(f.key);
+              }
+            }}
             className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
               selectedFilter === f.key
                 ? 'bg-primary text-background-dark'
                 : 'bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-white/15'
             }`}
           >
-            {f.label}
+            {f.key === 'custom' && customStart && customEnd && selectedFilter === 'custom'
+              ? `${customStart.slice(5)} ～ ${customEnd.slice(5)}`
+              : f.label}
           </button>
         ))}
       </div>
@@ -538,6 +559,20 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 自訂日期 Sheet */}
+      <DateRangeSheet
+        isOpen={showDateSheet}
+        onClose={() => setShowDateSheet(false)}
+        onConfirm={(start, end) => {
+          setCustomStart(start);
+          setCustomEnd(end);
+          setShowDateSheet(false);
+          setSelectedFilter('custom');
+        }}
+        initialStart={customStart}
+        initialEnd={customEnd}
+      />
 
         {/* 營收報表 Modal - 獨立於主要內容 */}
         {showRevenueReport && revenueReport && (

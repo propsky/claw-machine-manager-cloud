@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
+import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
 const MACHINES_CACHE_TTL = 5 * 60 * 1000;
 let todayCache: { data: ReadingsResponse; cachedAt: number } | null = null;
 
-type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'realtime';
+type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'realtime' | 'custom';
 type FilterStatus = 'all' | 'online' | 'offline';
+type SortBy = 'default' | 'revenue' | 'plays' | 'gifts';
 
 const DATE_FILTERS: { key: DateFilter; label: string }[] = [
   { key: 'today', label: '今日' },
@@ -16,6 +18,14 @@ const DATE_FILTERS: { key: DateFilter; label: string }[] = [
   { key: 'week', label: '本週' },
   { key: 'month', label: '本月' },
   { key: 'realtime', label: '即時抄表' },
+  { key: 'custom', label: '自訂' },
+];
+
+const SORT_OPTIONS: { key: SortBy; label: string; icon: string }[] = [
+  { key: 'default', label: '預設（場地 + 名稱）', icon: 'sort_by_alpha' },
+  { key: 'revenue', label: '依營業額（高到低）', icon: 'attach_money' },
+  { key: 'plays', label: '依遊玩次數（高到低）', icon: 'sports_esports' },
+  { key: 'gifts', label: '依出獎數（高到低）', icon: 'card_giftcard' },
 ];
 
 interface MachineViewItem {
@@ -42,7 +52,7 @@ function getTodayString(): string {
   return formatDate(new Date());
 }
 
-function getDateRange(filter: Exclude<DateFilter, 'realtime'>): { start: string; end: string } {
+function getDateRange(filter: Exclude<DateFilter, 'realtime' | 'custom'>): { start: string; end: string } {
   const now = new Date();
   const today = formatDate(now);
   switch (filter) {
@@ -81,6 +91,25 @@ function formatTime(isoString: string): string {
   return new Date(isoString).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
 }
 
+function formatActionTime(iso: string): string {
+  return new Date(iso).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// localStorage helpers
+const PINNED_KEY = 'pinned_machines';
+function getPinnedIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(PINNED_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+function togglePinnedStorage(cpuId: string): Set<string> {
+  const ids = getPinnedIds();
+  if (ids.has(cpuId)) ids.delete(cpuId); else ids.add(cpuId);
+  localStorage.setItem(PINNED_KEY, JSON.stringify([...ids]));
+  return ids;
+}
+const noteKey = (cpuId: string) => `machine_note_${cpuId}`;
+const actionKey = (cpuId: string, action: 'restocked' | 'checked') => `machine_${action}_${cpuId}`;
+
 export const Machines: React.FC = () => {
   const [todayReadings, setTodayReadings] = useState<ReadingsResponse | null>(null);
   const [filterPayments, setFilterPayments] = useState<PaymentsResponse | null>(null);
@@ -92,9 +121,26 @@ export const Machines: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   
+  // 自訂日期
+  const [showDateSheet, setShowDateSheet] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+
+  // 排序
+  const [sortBy, setSortBy] = useState<SortBy>('default');
+  const [showSortSheet, setShowSortSheet] = useState(false);
+
+  // 釘選
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(() => getPinnedIds());
+
   // 機台控制
   const [selectedMachine, setSelectedMachine] = useState<MachineViewItem | null>(null);
   const [controlLoading, setControlLoading] = useState(false);
+
+  // Modal 備註 + 補貨/檢查紀錄
+  const [modalNote, setModalNote] = useState('');
+  const [restockedTime, setRestockedTime] = useState<string | null>(null);
+  const [checkedTime, setCheckedTime] = useState<string | null>(null);
 
   // 今日資料（機台狀態用），5 分鐘 cache
   const loadToday = useCallback(async (force = false) => {
@@ -117,9 +163,10 @@ export const Machines: React.FC = () => {
   }, []);
 
   // 篩選期間資料（payments API 負責所有統計篩選，realtime 直接用 todayReadings）
-  const loadFilterData = useCallback(async (filter: DateFilter) => {
+  const loadFilterData = useCallback(async (filter: DateFilter, customRange?: { start: string; end: string }) => {
     if (filter === 'realtime') return;
-    const range = getDateRange(filter);
+    if (filter === 'custom' && !customRange) return;
+    const range = filter === 'custom' ? customRange! : getDateRange(filter as Exclude<DateFilter, 'realtime' | 'custom'>);
     setFilterLoading(true);
     setFilterPayments(null);
     try {
@@ -152,14 +199,25 @@ export const Machines: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadToday]);
 
+  useEffect(() => {
+    if (!selectedMachine) return;
+    setModalNote(localStorage.getItem(noteKey(selectedMachine.cpu_id)) || '');
+    setRestockedTime(localStorage.getItem(actionKey(selectedMachine.cpu_id, 'restocked')));
+    setCheckedTime(localStorage.getItem(actionKey(selectedMachine.cpu_id, 'checked')));
+  }, [selectedMachine]);
+
 
   useEffect(() => {
     if (dateFilter === 'realtime') {
       loadToday(true);
+    } else if (dateFilter === 'custom') {
+      if (customStart && customEnd) {
+        loadFilterData('custom', { start: customStart, end: customEnd });
+      }
     } else {
       loadFilterData(dateFilter);
     }
-  }, [dateFilter, loadFilterData, loadToday]);
+  }, [dateFilter, loadFilterData, loadToday, customStart, customEnd]);
 
   // 今日機台狀態 map（cpu_id → last_reading_time）
   const todayStatusMap = useMemo(() => {
@@ -252,11 +310,17 @@ export const Machines: React.FC = () => {
     : allMachineItems;
 
   // 排序
-  const sortedMachines = storeMachines.slice().sort((a, b) => {
-    const sc = a.store_name.localeCompare(b.store_name, 'zh-TW');
-    if (sc !== 0) return sc;
-    return a.machine_name.localeCompare(b.machine_name, undefined, { numeric: true });
-  });
+  const sortedMachines = useMemo(() => {
+    const list = storeMachines.slice();
+    if (sortBy === 'revenue') return list.sort((a, b) => b.revenue - a.revenue);
+    if (sortBy === 'plays') return list.sort((a, b) => b.total_play_count - a.total_play_count);
+    if (sortBy === 'gifts') return list.sort((a, b) => b.gift_out_count - a.gift_out_count);
+    return list.sort((a, b) => {
+      const sc = a.store_name.localeCompare(b.store_name, 'zh-TW');
+      if (sc !== 0) return sc;
+      return a.machine_name.localeCompare(b.machine_name, undefined, { numeric: true });
+    });
+  }, [storeMachines, sortBy]);
 
   const onlineCount = sortedMachines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.ONLINE).length;
   const offlineCount = sortedMachines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.OFFLINE).length;
@@ -286,12 +350,20 @@ export const Machines: React.FC = () => {
             onStoreChange={setSelectedStoreId}
           />
           <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex-1 text-center">機台監控</h1>
-          <button
-            onClick={() => { loadToday(true); loadFilterData(dateFilter); }}
-            className="text-slate-400 hover:text-primary transition-colors w-10 flex justify-end"
-          >
-            <span className="material-symbols-outlined">refresh</span>
-          </button>
+          <div className="flex items-center gap-1 w-20 justify-end">
+            <button
+              onClick={() => setShowSortSheet(true)}
+              className={`transition-colors ${sortBy !== 'default' ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
+            >
+              <span className="material-symbols-outlined">sort</span>
+            </button>
+            <button
+              onClick={() => { loadToday(true); if (dateFilter === 'custom' && customStart && customEnd) loadFilterData('custom', { start: customStart, end: customEnd }); else loadFilterData(dateFilter); }}
+              className="text-slate-400 hover:text-primary transition-colors"
+            >
+              <span className="material-symbols-outlined">refresh</span>
+            </button>
+          </div>
         </div>
 
         {/* 日期快速篩選 */}
@@ -299,12 +371,20 @@ export const Machines: React.FC = () => {
           {DATE_FILTERS.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setDateFilter(key)}
+              onClick={() => {
+                if (key === 'custom') {
+                  setShowDateSheet(true);
+                } else {
+                  setDateFilter(key);
+                }
+              }}
               className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
                 dateFilter === key ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
               }`}
             >
-              {label}
+              {key === 'custom' && customStart && customEnd && dateFilter === 'custom'
+                ? `${customStart.slice(5)} ～ ${customEnd.slice(5)}`
+                : label}
             </button>
           ))}
         </div>
@@ -380,17 +460,29 @@ export const Machines: React.FC = () => {
           </div>
         )}
 
-        {!isLoading && !error && filteredMachines.map((machine, idx) => {
+        {!isLoading && !error && (() => {
+          const pinnedList = filteredMachines.filter(m => pinnedIds.has(m.cpu_id));
+          const unpinnedList = filteredMachines.filter(m => !pinnedIds.has(m.cpu_id));
+          const displayList: { machine: typeof filteredMachines[0]; sectionHeader?: string }[] = [
+            ...pinnedList.map((m, i) => ({ machine: m, sectionHeader: i === 0 ? '已釘選' : undefined })),
+            ...unpinnedList.map((m, i) => ({ machine: m, sectionHeader: i === 0 && pinnedList.length > 0 ? '全部機台' : undefined })),
+          ];
+
+          return displayList.map(({ machine, sectionHeader }, idx) => {
           const status = getMachineStatus(machine.last_reading_time);
           const typeInfo = MACHINE_TYPE_INFO[machine.machineType];
           const hasGiftConcept = ['claw', 'gacha', 'whack', 'rocking'].includes(machine.machineType);
           const avgPayout = hasGiftConcept && machine.gift_out_count > 0
             ? Math.round(machine.revenue / machine.gift_out_count)
             : 0;
+          const isPinned = pinnedIds.has(machine.cpu_id);
 
           return (
+            <React.Fragment key={`${machine.key}-${idx}`}>
+              {sectionHeader && (
+                <p className="text-xs font-bold text-slate-400 dark:text-zinc-500 px-1 pt-1">{sectionHeader}</p>
+              )}
             <div
-              key={`${machine.key}-${idx}`}
               onClick={() => setSelectedMachine(machine)}
               className="bg-white dark:bg-card-dark rounded-xl p-4 shadow-sm dark:shadow-lg border border-slate-200 dark:border-white/10 relative overflow-hidden transition-all cursor-pointer active:scale-[0.98]"
             >
@@ -422,9 +514,19 @@ export const Machines: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <span className="text-xs text-slate-600 font-medium">
-                  {machine.last_reading_time ? `更新 ${formatTime(machine.last_reading_time)}` : ''}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 dark:text-zinc-500 font-medium">
+                    {machine.last_reading_time ? `更新 ${formatTime(machine.last_reading_time)}` : ''}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPinnedIds(togglePinnedStorage(machine.cpu_id)); }}
+                    className="transition-colors"
+                  >
+                    <span className={`material-symbols-outlined text-xl leading-none ${isPinned ? 'text-primary' : 'text-slate-300 dark:text-zinc-600'}`}>
+                      {isPinned ? 'star' : 'star_border'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-4 gap-y-4 gap-x-2">
@@ -472,24 +574,70 @@ export const Machines: React.FC = () => {
                 )}
               </div>
             </div>
+            </React.Fragment>
           );
-        })}
+          });
+        })()}
         <div className="h-6"></div>
       </main>
+
+      {/* 自訂日期 Sheet */}
+      <DateRangeSheet
+        isOpen={showDateSheet}
+        onClose={() => setShowDateSheet(false)}
+        onConfirm={(start, end) => {
+          setCustomStart(start);
+          setCustomEnd(end);
+          setShowDateSheet(false);
+          setDateFilter('custom');
+        }}
+        initialStart={customStart}
+        initialEnd={customEnd}
+      />
+
+      {/* 排序 Sheet */}
+      {showSortSheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowSortSheet(false)}></div>
+          <div className="relative w-full max-w-[430px] bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 pb-10 animate-slide-up">
+            <div className="flex h-1.5 w-full items-center justify-center py-4">
+              <div className="h-1.5 w-12 rounded-full bg-slate-200 dark:bg-white/20"></div>
+            </div>
+            <h2 className="text-center text-lg font-bold text-slate-900 dark:text-white pb-4">排序方式</h2>
+            <div className="px-4 space-y-2">
+              {SORT_OPTIONS.map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => { setSortBy(opt.key); setShowSortSheet(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${
+                    sortBy === opt.key
+                      ? 'bg-primary/15 text-primary'
+                      : 'bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl">{opt.icon}</span>
+                  <span className="font-medium text-sm">{opt.label}</span>
+                  {sortBy === opt.key && <span className="material-symbols-outlined text-base ml-auto">check</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 機台詳情 Modal */}
       {selectedMachine && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/70" onClick={() => setSelectedMachine(null)}></div>
-          <div className="relative w-full max-w-md bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 p-6 animate-slide-up">
+          <div className="relative w-full max-w-md bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 p-6 pb-10 animate-slide-up max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedMachine.machine_name}</h2>
               <button onClick={() => setSelectedMachine(null)} className="text-slate-400">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            
-            <div className="space-y-3 mb-6">
+
+            <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">門市</span>
                 <span className="text-slate-900 dark:text-white">{selectedMachine.store_name}</span>
@@ -506,6 +654,61 @@ export const Machines: React.FC = () => {
                 <span className="text-slate-400">營業額</span>
                 <span className="text-green-600 dark:text-neon-green">${selectedMachine.revenue.toLocaleString()}</span>
               </div>
+            </div>
+
+            {/* 補貨 / 檢查按鈕 */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => {
+                    const t = new Date().toISOString();
+                    localStorage.setItem(actionKey(selectedMachine.cpu_id, 'restocked'), t);
+                    setRestockedTime(t);
+                  }}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-500 dark:text-blue-400 rounded-xl font-medium text-sm transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">inventory_2</span>
+                  已補貨
+                </button>
+                {restockedTime && (
+                  <p className="text-[10px] text-center text-slate-400 dark:text-zinc-500">{formatActionTime(restockedTime)}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => {
+                    const t = new Date().toISOString();
+                    localStorage.setItem(actionKey(selectedMachine.cpu_id, 'checked'), t);
+                    setCheckedTime(t);
+                  }}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-purple-500/15 hover:bg-purple-500/25 text-purple-500 dark:text-purple-400 rounded-xl font-medium text-sm transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">task_alt</span>
+                  已檢查
+                </button>
+                {checkedTime && (
+                  <p className="text-[10px] text-center text-slate-400 dark:text-zinc-500">{formatActionTime(checkedTime)}</p>
+                )}
+              </div>
+            </div>
+
+            {/* 備註 */}
+            <div className="mb-4">
+              <label className="text-xs font-bold text-slate-400 dark:text-zinc-500 mb-1.5 block">備註</label>
+              <textarea
+                value={modalNote}
+                onChange={(e) => setModalNote(e.target.value)}
+                onBlur={() => {
+                  if (modalNote.trim()) {
+                    localStorage.setItem(noteKey(selectedMachine.cpu_id), modalNote);
+                  } else {
+                    localStorage.removeItem(noteKey(selectedMachine.cpu_id));
+                  }
+                }}
+                placeholder="輸入機台備註..."
+                rows={3}
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
+              />
             </div>
 
             {/* 控制按鈕 */}
