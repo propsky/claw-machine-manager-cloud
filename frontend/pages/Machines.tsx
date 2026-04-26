@@ -31,7 +31,6 @@ const SORT_OPTIONS: { key: SortBy; label: string; icon: string }[] = [
 interface MachineViewItem {
   key: string;
   cpu_id: string;
-  machine_id: number | null;
   machine_name: string;
   store_name: string;
   store_id: number;
@@ -233,15 +232,6 @@ export const Machines: React.FC = () => {
     return map;
   }, [todayReadings]);
 
-  // cpu_id → clawmachine_id 對照（供非即時模式的控制按鈕使用）
-  const cpuIdToMachineId = useMemo(() => {
-    const map = new Map<string, number>();
-    (todayReadings?.items || []).forEach(item => {
-      if (item.clawmachine_id) map.set(item.cpu_id, item.clawmachine_id);
-    });
-    return map;
-  }, [todayReadings]);
-
   // 選中場地名稱（多日模式的 store 過濾備用）
   const selectedStoreName = useMemo(() => {
     if (!selectedStoreId) return null;
@@ -258,7 +248,6 @@ export const Machines: React.FC = () => {
         return {
           key: item.cpu_id,
           cpu_id: item.cpu_id,
-          machine_id: item.clawmachine_id ?? null,
           machine_name: item.machine_name,
           store_name: item.store_name,
           store_id: item.store_id,
@@ -293,7 +282,6 @@ export const Machines: React.FC = () => {
         machineMap.set(key, {
           key,
           cpu_id: item.happy_cpu_id,
-          machine_id: cpuIdToMachineId.get(item.happy_cpu_id) ?? null,
           machine_name: item.machine_display_name || item.machine_name,
           store_name: item.store_name,
           store_id: storeNameToId.get(item.store_name) ?? 0,
@@ -308,7 +296,7 @@ export const Machines: React.FC = () => {
       }
     });
     return Array.from(machineMap.values());
-  }, [dateFilter, todayReadings, filterPayments, todayStatusMap, storeNameToId, cpuIdToMachineId]);
+  }, [dateFilter, todayReadings, filterPayments, todayStatusMap, storeNameToId]);
 
   // 場地過濾
   const storeMachines = selectedStoreId
@@ -726,7 +714,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
                     setControlLoading(true);
-                    restartMachine(selectedMachine.machine_id ?? selectedMachine.cpu_id)
+                    restartMachine(selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
@@ -746,7 +734,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
                     setControlLoading(true);
-                    startMachine(selectedMachine.machine_id ?? selectedMachine.cpu_id)
+                    startMachine(selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })

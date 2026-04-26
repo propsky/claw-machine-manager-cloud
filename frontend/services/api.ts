@@ -293,13 +293,13 @@ export async function fetchHappyCardmachines(): Promise<HappyCardmachine[]> {
 
 // ==================== 機台控制 API ====================
 
-export async function restartMachine(machineId: number | string): Promise<{ message: string }> {
+export async function restartMachine(machineId: string): Promise<{ message: string }> {
   const url = getBaseUrl(`/api/claw-machines/${machineId}/restart`);
   const response = await authFetch(url, { method: 'POST' });
   return response.json();
 }
 
-export async function startMachine(machineId: number | string, epays?: number): Promise<{ message: string }> {
+export async function startMachine(machineId: string, epays?: number): Promise<{ message: string }> {
   const url = getBaseUrl(`/api/claw-machines/${machineId}/start${epays ? '?epays=' + epays : ''}`);
   const response = await authFetch(url, { method: 'POST' });
   return response.json();
