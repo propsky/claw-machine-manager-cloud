@@ -233,6 +233,15 @@ export const Machines: React.FC = () => {
     return map;
   }, [todayReadings]);
 
+  // cpu_id → clawmachine_id 對照（供非即時模式的控制按鈕使用）
+  const cpuIdToMachineId = useMemo(() => {
+    const map = new Map<string, number>();
+    (todayReadings?.items || []).forEach(item => {
+      if (item.clawmachine_id) map.set(item.cpu_id, item.clawmachine_id);
+    });
+    return map;
+  }, [todayReadings]);
+
   // 選中場地名稱（多日模式的 store 過濾備用）
   const selectedStoreName = useMemo(() => {
     if (!selectedStoreId) return null;
@@ -284,7 +293,7 @@ export const Machines: React.FC = () => {
         machineMap.set(key, {
           key,
           cpu_id: item.happy_cpu_id,
-          machine_id: null,
+          machine_id: cpuIdToMachineId.get(item.happy_cpu_id) ?? null,
           machine_name: item.machine_display_name || item.machine_name,
           store_name: item.store_name,
           store_id: storeNameToId.get(item.store_name) ?? 0,
@@ -299,7 +308,7 @@ export const Machines: React.FC = () => {
       }
     });
     return Array.from(machineMap.values());
-  }, [dateFilter, todayReadings, filterPayments, todayStatusMap, storeNameToId]);
+  }, [dateFilter, todayReadings, filterPayments, todayStatusMap, storeNameToId, cpuIdToMachineId]);
 
   // 場地過濾
   const storeMachines = selectedStoreId
