@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
-import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
+import { fetchReadings, fetchPayments, fetchHappyCardmachines, restartMachine, startMachine } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
@@ -135,6 +135,7 @@ export const Machines: React.FC = () => {
   // 機台控制
   const [selectedMachine, setSelectedMachine] = useState<MachineViewItem | null>(null);
   const [controlLoading, setControlLoading] = useState(false);
+  const [cpuToMachineId, setCpuToMachineId] = useState<Map<string, number>>(new Map());
 
   // Modal 備註 + 補貨/檢查紀錄
   const [modalNote, setModalNote] = useState('');
@@ -197,6 +198,12 @@ export const Machines: React.FC = () => {
     const interval = setInterval(() => loadToday(), 30000);
     return () => clearInterval(interval);
   }, [loadToday]);
+
+  useEffect(() => {
+    fetchHappyCardmachines().then(list => {
+      setCpuToMachineId(new Map(list.map(m => [m.cpu_id, m.id])));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!selectedMachine) return;
@@ -714,7 +721,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
                     setControlLoading(true);
-                    restartMachine(selectedMachine.cpu_id)
+                    restartMachine(cpuToMachineId.get(selectedMachine.cpu_id) ?? selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
@@ -734,7 +741,7 @@ export const Machines: React.FC = () => {
                 onClick={() => {
                   if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
                     setControlLoading(true);
-                    startMachine(selectedMachine.cpu_id)
+                    startMachine(cpuToMachineId.get(selectedMachine.cpu_id) ?? selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
