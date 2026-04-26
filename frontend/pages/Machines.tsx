@@ -724,13 +724,9 @@ export const Machines: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => {
-                  if (!selectedMachine.machine_id) {
-                    alert('❌ 此機台尚未綁定 ID，無法發送指令');
-                    return;
-                  }
                   if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
                     setControlLoading(true);
-                    restartMachine(selectedMachine.machine_id)
+                    restartMachine(selectedMachine.machine_id ?? selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
@@ -748,13 +744,9 @@ export const Machines: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  if (!selectedMachine.machine_id) {
-                    alert('❌ 此機台尚未綁定 ID，無法發送指令');
-                    return;
-                  }
                   if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
                     setControlLoading(true);
-                    startMachine(selectedMachine.machine_id)
+                    startMachine(selectedMachine.machine_id ?? selectedMachine.cpu_id)
                       .then(() => {
                         alert('✅ 指令已發送，請稍後查看機台狀態');
                       })
