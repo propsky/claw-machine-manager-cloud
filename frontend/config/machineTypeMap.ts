@@ -37,7 +37,7 @@ export interface MachineTypeInfo {
 // ─────────────────────────────────────────────
 
 export const MACHINE_TYPE_INFO: Record<MachineType, MachineTypeInfo> = {
-  claw:    { type: 'claw',    name: '娃娃機', icon: '🧸', hasInventory: false, coinPrice: 30 },
+  claw:    { type: 'claw',    name: '娃娃機', icon: '🧸', hasInventory: false, coinPrice: 10 },
   gacha:   { type: 'gacha',   name: '扭蛋機', icon: '🥚', hasInventory: true,  coinPrice: 30 },
   whack:   { type: 'whack',   name: '打地鼠', icon: '🐹', hasInventory: false, coinPrice: 10 },
   rocking: { type: 'rocking', name: '搖馬機', icon: '🐴', hasInventory: false, coinPrice: 10 },
