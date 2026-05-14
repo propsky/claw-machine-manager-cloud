@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { MachineStatus, ReadingsResponse, ReadingItem, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
-import { fetchReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
+import { MachineStatus, ReadingsResponse, MeterReadingsResponse, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
+import { fetchMeterReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
@@ -9,8 +9,9 @@ const PLAY_PRICE = 10;
 
 type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'custom';
 
-function getMachineStatus(machine: ReadingItem): MachineStatus {
-  const lastTime = new Date(machine.last_reading_time);
+function getMachineStatus(lastReadingTime: string | null): MachineStatus {
+  if (!lastReadingTime) return MachineStatus.OFFLINE;
+  const lastTime = new Date(lastReadingTime);
   const now = new Date();
   const diffMinutes = Math.floor((now.getTime() - lastTime.getTime()) / (1000 * 60));
   // API 約 80 分鐘更新一次，設定 90 分鐘無回應視為離線
@@ -123,7 +124,7 @@ export const Dashboard: React.FC = () => {
   }, [selectedFilter]);
 
   // 即時資料（今日 readings，用於場地健康）
-  const [realtimeReadings, setRealtimeReadings] = useState<ReadingsResponse | null>(null);
+  const [realtimeReadings, setRealtimeReadings] = useState<MeterReadingsResponse | null>(null);
   // 篩選用的營收資料
   const [revenueData, setRevenueData] = useState<{ coin: number; epay: number } | null>(null);
   const [balanceData, setBalanceData] = useState<BalanceResponse | null>(null);
@@ -202,7 +203,7 @@ export const Dashboard: React.FC = () => {
   const loadRealtimeData = useCallback(async () => {
     try {
       const [readings, balance, activity] = await Promise.all([
-        fetchReadings(formatDate(new Date()), selectedStoreId || undefined),
+        fetchMeterReadings(selectedStoreId || undefined),
         fetchBalance(selectedStoreId || undefined),
         fetchActivity(selectedStoreId || undefined),
       ]);
@@ -263,8 +264,10 @@ export const Dashboard: React.FC = () => {
   }
 
   const machines = realtimeReadings?.items || [];
-  const onlineCount = machines.filter(m => getMachineStatus(m) === MachineStatus.ONLINE).length;
-  const offlineCount = machines.filter(m => getMachineStatus(m) === MachineStatus.OFFLINE).length;
+  // meter-readings 的 total_machines 來自 clawmachines is_active=true，不會浮動
+  // 離線 = 總數 − 在線，保證三數一致（未抄表機台一律視為離線）
+  const onlineCount = machines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.ONLINE).length;
+  const offlineCount = Math.max(0, (realtimeReadings?.total_machines ?? 0) - onlineCount);
 
   // 各機台類型數量（健康狀態區塊用）
   const typeCountMap = useMemo(() => {

@@ -5,6 +5,7 @@ import {
 } from './mockData';
 import type {
   ReadingsResponse,
+  MeterReadingsResponse,
   MachinesStatusResponse,
   BalanceResponse,
   ActivityResponse,
@@ -93,6 +94,30 @@ export async function fetchReadings(date: string, storeId?: number): Promise<Rea
   const params = new URLSearchParams({ date });
   if (storeId) params.set('store_id', String(storeId));
   const url = getBaseUrl(`/api/store-app/readings?${params.toString()}`);
+  const response = await authFetch(url);
+  return response.json();
+}
+
+export async function fetchMeterReadings(storeId?: number): Promise<MeterReadingsResponse> {
+  if (isGuest()) {
+    const items = (storeId ? MOCK_READINGS.items.filter(i => i.store_id === storeId) : MOCK_READINGS.items)
+      .map(i => ({
+        store_id: i.store_id,
+        machine_code: i.cpu_id,
+        location_machine_number: i.machine_name,
+        cpu_id: i.cpu_id,
+        last_reading_time: i.last_reading_time,
+      }));
+    return {
+      total_machines: items.length,
+      machines_with_data: items.length,
+      items,
+    };
+  }
+  const params = new URLSearchParams();
+  if (storeId) params.set('store_id', String(storeId));
+  const qs = params.toString();
+  const url = getBaseUrl(`/api/store-app/meter-readings${qs ? `?${qs}` : ''}`);
   const response = await authFetch(url);
   return response.json();
 }

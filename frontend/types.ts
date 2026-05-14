@@ -56,6 +56,22 @@ export interface ReadingsResponse {
   };
 }
 
+// GET /api/store-app/meter-readings
+// total_machines 來自 clawmachines is_active=true，不隨當日抄表浮動
+export interface MeterReadingItem {
+  store_id: number;
+  machine_code: string;
+  location_machine_number: string;
+  cpu_id: string;
+  last_reading_time: string | null;
+}
+
+export interface MeterReadingsResponse {
+  total_machines: number;
+  machines_with_data: number;
+  items: MeterReadingItem[];
+}
+
 // GET /api/store-app/machines/status
 export interface MachineStatusItem {
   id: number;
