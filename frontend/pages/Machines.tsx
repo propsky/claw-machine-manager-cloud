@@ -170,19 +170,25 @@ export const Machines: React.FC = () => {
     setFilterLoading(true);
     setFilterPayments(null);
     try {
-      const first = await fetchPayments(range.start, range.end, undefined, 1, 100);
-      const totalPages = first.total_pages || 1;
+      const PAGE_SIZE = 100;
+      const BATCH = 3;
+      const SAFETY_MAX_PAGES = 200; // 上限保險，避免後端錯誤造成無限迴圈
+      const first = await fetchPayments(range.start, range.end, undefined, 1, PAGE_SIZE);
       let allItems = [...first.items];
+      // 智慧翻頁：不信任 total_pages，靠「該頁不滿 PAGE_SIZE 就是最後一頁」判斷
+      let hasMore = first.items.length === PAGE_SIZE;
+      let nextPage = 2;
 
-      for (let batchStart = 2; batchStart <= totalPages; batchStart += 3) {
-        const batch = Array.from(
-          { length: Math.min(3, totalPages - batchStart + 1) },
-          (_, i) => batchStart + i
+      while (hasMore && nextPage <= SAFETY_MAX_PAGES) {
+        const batchPages = Array.from({ length: BATCH }, (_, i) => nextPage + i);
+        const results = await Promise.all(
+          batchPages.map(p => fetchPayments(range.start, range.end, undefined, p, PAGE_SIZE))
         );
-        const pages = await Promise.all(
-          batch.map(p => fetchPayments(range.start, range.end, undefined, p, 100))
-        );
-        pages.forEach(p => { allItems = allItems.concat(p.items); });
+        for (const r of results) {
+          allItems = allItems.concat(r.items);
+          if (r.items.length < PAGE_SIZE) hasMore = false;
+        }
+        nextPage += BATCH;
       }
 
       setFilterPayments({ ...first, items: allItems });
