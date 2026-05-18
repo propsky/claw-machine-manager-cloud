@@ -171,24 +171,17 @@ export const Machines: React.FC = () => {
     setFilterPayments(null);
     try {
       const PAGE_SIZE = 100;
-      const BATCH = 3;
       const SAFETY_MAX_PAGES = 200; // 上限保險，避免後端錯誤造成無限迴圈
       const first = await fetchPayments(range.start, range.end, undefined, 1, PAGE_SIZE);
       let allItems = [...first.items];
-      // 智慧翻頁：不信任 total_pages，靠「該頁不滿 PAGE_SIZE 就是最後一頁」判斷
+      // 智慧翻頁：逐頁循序，不滿 PAGE_SIZE 立刻停，零浪費請求
+      let page = 2;
       let hasMore = first.items.length === PAGE_SIZE;
-      let nextPage = 2;
-
-      while (hasMore && nextPage <= SAFETY_MAX_PAGES) {
-        const batchPages = Array.from({ length: BATCH }, (_, i) => nextPage + i);
-        const results = await Promise.all(
-          batchPages.map(p => fetchPayments(range.start, range.end, undefined, p, PAGE_SIZE))
-        );
-        for (const r of results) {
-          allItems = allItems.concat(r.items);
-          if (r.items.length < PAGE_SIZE) hasMore = false;
-        }
-        nextPage += BATCH;
+      while (hasMore && page <= SAFETY_MAX_PAGES) {
+        const r = await fetchPayments(range.start, range.end, undefined, page, PAGE_SIZE);
+        allItems = allItems.concat(r.items);
+        if (r.items.length < PAGE_SIZE) hasMore = false;
+        page++;
       }
 
       setFilterPayments({ ...first, items: allItems });
