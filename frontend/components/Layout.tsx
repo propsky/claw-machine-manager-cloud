@@ -41,6 +41,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <span className="material-symbols-outlined" style={getIconStyle('/finance')}>account_balance_wallet</span>
           <span className="text-[10px] font-bold">財務</span>
         </div>
+        <div onClick={() => navigate('/transactions')} className={getNavItemClass('/transactions')}>
+          <span className="material-symbols-outlined" style={getIconStyle('/transactions')}>receipt_long</span>
+          <span className="text-[10px] font-bold">帳務</span>
+        </div>
         <div onClick={() => navigate('/settings')} className={getNavItemClass('/settings')}>
           <span className="material-symbols-outlined" style={getIconStyle('/settings')}>settings</span>
           <span className="text-[10px] font-bold">設定</span>
