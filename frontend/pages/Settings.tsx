@@ -157,21 +157,6 @@ export const Settings: React.FC = () => {
     }
   };
 
-  // 隱藏開發功能：連點版本資訊 20 下解鎖提領金額顯示
-  const [devTapCount, setDevTapCount] = useState(0);
-  const handleVersionTap = () => {
-    const next = devTapCount + 1;
-    if (next === 20) {
-      const current = localStorage.getItem('show_balance') === '1';
-      localStorage.setItem('show_balance', current ? '0' : '1');
-      setToast({ message: current ? '已隱藏提領功能' : '🔓 已解鎖提領功能', type: current ? 'info' : 'success' });
-      setDevTapCount(0);
-    } else {
-      if (next >= 15) setToast({ message: `還差 ${20 - next} 下解鎖`, type: 'info' });
-      setDevTapCount(next);
-    }
-  };
-
   // 個人資料狀態
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -641,7 +626,7 @@ export const Settings: React.FC = () => {
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">關於</h3>
           <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
             {/* 版本資訊 */}
-            <div className="flex items-center justify-between p-4 select-none" onClick={handleVersionTap}>
+            <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
                   <span className="material-symbols-outlined text-slate-500 dark:text-white/60">info</span>
