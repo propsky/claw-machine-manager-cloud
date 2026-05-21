@@ -28,7 +28,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
       loadData();
       setError(null);
       setSuccess(false);
-      setWithdrawAmount(amount.toString()); // 預設為最大值
+      setWithdrawAmount(Math.floor(amount).toString()); // 預設為最大值（無條件捨去）
     }
   }, [isOpen, amount]);
 
