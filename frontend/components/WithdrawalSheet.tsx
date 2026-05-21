@@ -63,15 +63,16 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
   };
 
   const fee = getFee();
-  const inputAmount = parseFloat(withdrawAmount) || 0;
+  const maxAmount = Math.floor(amount);
+  const inputAmount = parseInt(withdrawAmount, 10) || 0;
   const actualAmount = Math.max(0, inputAmount - fee);
 
   // 檢查是否可提領
-  const canSubmit = inputAmount > 0 && inputAmount <= amount && selectedAccount && inputAmount >= fee;
+  const canSubmit = inputAmount > 0 && inputAmount <= maxAmount && selectedAccount && inputAmount >= fee;
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      if (inputAmount > amount) {
+      if (inputAmount > maxAmount) {
         setError('提領金額不可超過可提領餘額');
       } else if (inputAmount < fee && fee > 0) {
         setError(`手續費 $${fee}，請提領 $${fee} 以上`);
@@ -129,7 +130,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
         {/* Header */}
         <div className="px-6 pt-2 pb-4 z-10">
           <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">確認提領申請</h1>
-          <p className="text-slate-500 dark:text-white/50 text-sm text-center mt-1">可提領餘額：${amount.toLocaleString()}</p>
+          <p className="text-slate-500 dark:text-white/50 text-sm text-center mt-1">可提領餘額：${maxAmount.toLocaleString()}</p>
         </div>
 
         {/* Content Area */}
@@ -158,17 +159,16 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
                   <input
-                    type="number"
-                    step="1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={withdrawAmount}
-                    onChange={e => setWithdrawAmount(Math.floor(Number(e.target.value)).toString())}
-                    max={amount}
-                    min={1}
+                    onChange={e => setWithdrawAmount(e.target.value.replace(/\D/g, ''))}
                     className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-4 pl-10 pr-4 text-slate-900 dark:text-white text-2xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                     placeholder="0"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30 text-sm">
-                    最高 ${amount.toLocaleString()}
+                    最高 ${maxAmount.toLocaleString()}
                   </span>
                 </div>
               </div>

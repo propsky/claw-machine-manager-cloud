@@ -468,7 +468,7 @@ export const Dashboard: React.FC = () => {
             <div>
               <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
               <p className="text-primary text-lg font-bold">
-                {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
+                {loading || availableBalance === null ? '--' : `$${Math.floor(availableBalance).toLocaleString()}`}
               </p>
             </div>
           </div>

@@ -191,7 +191,7 @@ export const Finance: React.FC = () => {
           <div className="flex flex-col gap-1">
             <span className="text-slate-500 dark:text-white/60 text-sm font-medium">可提領餘額</span>
             <h2 className="text-4xl font-bold text-success tracking-tight">
-              {balanceData ? `$${availableBalance.toLocaleString()}` : '--'}
+              {balanceData ? `$${Math.floor(availableBalance).toLocaleString()}` : '--'}
             </h2>
           </div>
           <div className="mt-8 flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-4">
