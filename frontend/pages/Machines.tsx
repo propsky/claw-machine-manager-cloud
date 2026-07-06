@@ -40,6 +40,11 @@ interface MachineViewItem {
   card_amount: number;
   gift_out_count: number;
   revenue: number;
+  product_name: string | null;
+  /** null = 未綁商品/未設成本，UI 顯示「未設定」而非 0 */
+  cost: number | null;
+  /** null = 未設成本，UI 顯示「未設定」而非 0 */
+  gross_profit: number | null;
   last_reading_time: string | null;
   machineType: MachineType;
 }
@@ -257,6 +262,12 @@ export const Machines: React.FC = () => {
           card_amount: item.epay_play_count * coinPrice,
           gift_out_count: item.gift_out_count,
           revenue: item.total_play_count * coinPrice,
+          product_name: item.product_name ?? null,
+          cost: item.cost ?? null,
+          // 毛利 = (投幣 + 電支) × 單價 − 出貨成本；沒設成本（cost=null）時為 null
+          gross_profit: item.cost == null
+            ? null
+            : (item.coin_play_count + item.epay_play_count) * coinPrice - item.cost,
           last_reading_time: item.last_reading_time,
           machineType: typeInfo.type,
         };
@@ -272,6 +283,9 @@ export const Machines: React.FC = () => {
       const coinPlayCount = typeInfo.coinPrice
         ? Math.round(item.coin_amount / typeInfo.coinPrice)
         : (item.transaction_count || 0);
+      // gross_profit=null 表示該日未設成本（此時 cost 會回 0，不可信），成本/毛利一律視為未設定
+      const itemCost = item.gross_profit == null ? null : item.cost;
+      const itemGrossProfit = item.gross_profit ?? null;
       if (machineMap.has(key)) {
         const m = machineMap.get(key)!;
         m.total_play_count += coinPlayCount + item.card_play_count;
@@ -279,6 +293,10 @@ export const Machines: React.FC = () => {
         m.card_amount += item.card_amount;
         m.gift_out_count += item.prize_count;
         m.revenue += item.total_revenue;
+        // 只要區間內任一天未設成本，加總就不完整 → 整段顯示未設定
+        m.cost = m.cost == null || itemCost == null ? null : m.cost + itemCost;
+        m.gross_profit = m.gross_profit == null || itemGrossProfit == null ? null : m.gross_profit + itemGrossProfit;
+        if (!m.product_name && item.product_name) m.product_name = item.product_name;
       } else {
         machineMap.set(key, {
           key,
@@ -292,6 +310,9 @@ export const Machines: React.FC = () => {
           card_amount: item.card_amount,
           gift_out_count: item.prize_count,
           revenue: item.total_revenue,
+          product_name: item.product_name || null,
+          cost: itemCost,
+          gross_profit: itemGrossProfit,
           last_reading_time: todayStatusMap.get(key) ?? null,
           machineType: typeInfo.type,
         });
@@ -499,6 +520,11 @@ export const Machines: React.FC = () => {
                     <span className="text-xs text-slate-500 dark:text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
                       {typeInfo.icon} {typeInfo.name}
                     </span>
+                    {machine.product_name && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 max-w-[140px] truncate">
+                        🎁 {machine.product_name}
+                      </span>
+                    )}
                     {status === MachineStatus.ONLINE && (
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 dark:bg-neon-green/10 border border-green-200 dark:border-neon-green/20">
                         <div className="h-1.5 w-1.5 rounded-full bg-green-500 dark:bg-neon-green animate-pulse"></div>
@@ -571,6 +597,28 @@ export const Machines: React.FC = () => {
                     </div>
                   </>
                 )}
+                <div className="flex flex-col">
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">成本</span>
+                  {machine.cost == null ? (
+                    <span className="text-sm font-medium text-slate-400 dark:text-zinc-600 leading-6">未設定</span>
+                  ) : (
+                    <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+                      ${machine.cost.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                <div className={`flex flex-col items-end ${hasGiftConcept ? '' : 'col-start-4'}`}>
+                  <span className="text-xs text-slate-500 font-medium mb-0.5">毛利</span>
+                  {machine.gross_profit == null ? (
+                    <span className="text-sm font-medium text-slate-400 dark:text-zinc-600 leading-6">未設定</span>
+                  ) : (
+                    <span className={`text-base font-bold tracking-tight ${
+                      machine.gross_profit < 0 ? 'text-red-600 dark:text-bright-red' : 'text-green-600 dark:text-neon-green'
+                    }`}>
+                      ${machine.gross_profit.toLocaleString()}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             </React.Fragment>
@@ -652,6 +700,26 @@ export const Machines: React.FC = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">營業額</span>
                 <span className="text-green-600 dark:text-neon-green">${selectedMachine.revenue.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">商品</span>
+                <span className="text-slate-900 dark:text-white">{selectedMachine.product_name ?? '未綁定'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">成本</span>
+                <span className="text-slate-900 dark:text-white">
+                  {selectedMachine.cost == null ? '未設定' : `$${selectedMachine.cost.toLocaleString()}`}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400">毛利</span>
+                {selectedMachine.gross_profit == null ? (
+                  <span className="text-slate-400">未設定</span>
+                ) : (
+                  <span className={selectedMachine.gross_profit < 0 ? 'text-red-600 dark:text-bright-red' : 'text-green-600 dark:text-neon-green'}>
+                    ${selectedMachine.gross_profit.toLocaleString()}
+                  </span>
+                )}
               </div>
             </div>
 

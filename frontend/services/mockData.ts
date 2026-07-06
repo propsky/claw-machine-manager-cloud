@@ -66,16 +66,18 @@ interface MockMachine {
   coinPlays: number;
   epayPlays: number;
   giftOut: number;
+  /** 綁定的商品（名稱 + 每件成本）；未綁商品則省略，成本/毛利顯示「未設定」 */
+  product?: { name: string; unitCost: number };
 }
 
 const MACHINES: MockMachine[] = [
   // 大安店
-  { store: '大安店', store_id: 1, name: '01號機', cpu: 'MOCK_CLAW_001',    clawmachine_id: 101, coinPlays: 38, epayPlays: 12, giftOut: 3 },
-  { store: '大安店', store_id: 1, name: '02號機', cpu: 'MOCK_CLAW_002',    clawmachine_id: 102, coinPlays: 21, epayPlays: 5,  giftOut: 1 },
-  { store: '大安店', store_id: 1, name: '03號機', cpu: 'MOCK_GACHA_001',   clawmachine_id: 103, coinPlays: 30, epayPlays: 10, giftOut: 8 },
+  { store: '大安店', store_id: 1, name: '01號機', cpu: 'MOCK_CLAW_001',    clawmachine_id: 101, coinPlays: 38, epayPlays: 12, giftOut: 3, product: { name: '景品公仔', unitCost: 100 } },
+  { store: '大安店', store_id: 1, name: '02號機', cpu: 'MOCK_CLAW_002',    clawmachine_id: 102, coinPlays: 21, epayPlays: 5,  giftOut: 1, product: { name: '絨毛娃娃', unitCost: 80 } },
+  { store: '大安店', store_id: 1, name: '03號機', cpu: 'MOCK_GACHA_001',   clawmachine_id: 103, coinPlays: 30, epayPlays: 10, giftOut: 8, product: { name: '扭蛋', unitCost: 15 } },
   { store: '大安店', store_id: 1, name: '04號機', cpu: 'MOCK_WHACK_001',   clawmachine_id: 104, coinPlays: 25, epayPlays: 8,  giftOut: 0 },
   // 信義店
-  { store: '信義店', store_id: 2, name: '01號機', cpu: 'MOCK_CLAW_003',    clawmachine_id: 201, coinPlays: 55, epayPlays: 20, giftOut: 5 },
+  { store: '信義店', store_id: 2, name: '01號機', cpu: 'MOCK_CLAW_003',    clawmachine_id: 201, coinPlays: 55, epayPlays: 20, giftOut: 5, product: { name: '盲盒公仔', unitCost: 120 } },
   { store: '信義店', store_id: 2, name: '02號機', cpu: 'MOCK_ROCKING_001', clawmachine_id: 202, coinPlays: 45, epayPlays: 5,  giftOut: 0 },
   { store: '信義店', store_id: 2, name: '03號機', cpu: 'MOCK_PINBALL_001', clawmachine_id: 203, coinPlays: 80, epayPlays: 20, giftOut: 0 },
   { store: '信義店', store_id: 2, name: '04號機', cpu: 'MOCK_VENDING_001', clawmachine_id: 204, coinPlays: 20, epayPlays: 10, giftOut: 0 },
@@ -109,6 +111,9 @@ export const MOCK_READINGS: ReadingsResponse = {
       total_play_count: m.coinPlays + m.epayPlays,
       first_reading_time: `${fmt(today)}T08:${mm}:00`,
       last_reading_time: `${fmt(today)}T${todayHH}:${mm}:00`,
+      product_name: m.product?.name ?? null,
+      unit_cost: m.product?.unitCost ?? null,
+      cost: m.product ? m.product.unitCost * m.giftOut : null,
     };
   }),
 };
@@ -152,15 +157,19 @@ const makePaymentItems = (startDate: string, endDate: string) => {
       const card = epayPlays * price;
       const revenue = coin + card;
       const totalPlays = coinPlays + epayPlays;
+      // 對齊後端規格：沒設成本時 cost=0、gross_profit=null
+      const cost = m.product ? m.product.unitCost * prize : 0;
 
       items.push({
         machine_name: m.name,
-        product_name: '遊戲收入',
+        product_name: m.product?.name ?? '獎品',
         coin_amount: coin,
         card_amount: card,
         total_revenue: revenue,
         prize_count: prize,
-        cost: Math.round(revenue * 0.3),
+        cost,
+        unit_cost: m.product?.unitCost ?? null,
+        gross_profit: m.product ? revenue - cost : null,
         average_prize_rate: prize > 0 ? Math.round(revenue / prize) : 0,
         gift_play_count: 0,
         free_play_count: 0,
@@ -198,12 +207,15 @@ export function getMockPayments(startDate: string, endDate: string, storeId?: nu
       acc.total_actual_daily_rent += i.actual_daily_rent;
       acc.total_card_play_count += i.card_play_count;
       acc.total_transaction_count += i.transaction_count;
+      acc.total_cost += i.cost;
+      acc.total_gross_profit += i.gross_profit ?? 0;
       return acc;
     },
     {
       total_revenue: 0, total_card_amount: 0, total_coin_amount: 0,
       total_prize_count: 0, total_actual_income: 0, total_actual_transaction_fee: 0,
       total_actual_daily_rent: 0, total_card_play_count: 0, total_transaction_count: 0,
+      total_cost: 0, total_gross_profit: 0,
     }
   );
   return {
