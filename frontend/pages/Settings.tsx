@@ -12,6 +12,14 @@ import { Toast, ToastType } from '../components/Toast';
 // 版本更新記錄
 const CHANGELOG = [
   {
+    version: '3.3.2',
+    date: '2026-08-14',
+    features: [
+      '修正日期篩選模式下（今日／昨日等）機台的重啟與遠端投幣按鈕無法點擊的問題',
+      '機台控制指令改以 cpu_id 對照取得機台 ID，日期模式與即時抄表皆可操作',
+    ]
+  },
+  {
     version: '3.3.1',
     date: '2026-04-13',
     features: [
