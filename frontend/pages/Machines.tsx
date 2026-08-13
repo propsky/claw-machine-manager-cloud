@@ -230,6 +230,15 @@ export const Machines: React.FC = () => {
     return map;
   }, [todayReadings]);
 
+  // cpu_id → clawmachine_id 對照（payments 資料沒有數字機台 ID，控制指令需靠此補上）
+  const cpuToClawId = useMemo(() => {
+    const map = new Map<string, number>();
+    (todayReadings?.items || []).forEach(item => {
+      if (item.clawmachine_id != null) map.set(item.cpu_id, item.clawmachine_id);
+    });
+    return map;
+  }, [todayReadings]);
+
   // store_name → store_id 對照（從今日 readings 取得，供多日 payments 過濾用）
   const storeNameToId = useMemo(() => {
     const map = new Map<string, number>();
@@ -301,7 +310,7 @@ export const Machines: React.FC = () => {
         machineMap.set(key, {
           key,
           cpu_id: item.happy_cpu_id,
-          machine_id: null,
+          machine_id: cpuToClawId.get(item.happy_cpu_id) ?? null,
           machine_name: item.machine_display_name || item.machine_name,
           store_name: item.store_name,
           store_id: storeNameToId.get(item.store_name) ?? 0,
@@ -319,7 +328,7 @@ export const Machines: React.FC = () => {
       }
     });
     return Array.from(machineMap.values());
-  }, [dateFilter, todayReadings, filterPayments, todayStatusMap, storeNameToId]);
+  }, [dateFilter, todayReadings, filterPayments, todayStatusMap, storeNameToId, cpuToClawId]);
 
   // 場地過濾
   const storeMachines = selectedStoreId
