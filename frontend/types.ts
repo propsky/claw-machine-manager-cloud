@@ -42,6 +42,12 @@ export interface ReadingItem {
   total_play_count: number;
   first_reading_time: string;
   last_reading_time: string;
+  /** 機台綁定的商品名稱，未綁商品為 null */
+  product_name: string | null;
+  /** 每件出貨成本，未設定為 null */
+  unit_cost: number | null;
+  /** 今日出貨成本 = unit_cost × 出獎數，未設成本為 null（勿當 0 算） */
+  cost: number | null;
 }
 
 export interface ReadingsResponse {
@@ -54,6 +60,22 @@ export interface ReadingsResponse {
     total_gift_out: number;
     total_play: number;
   };
+}
+
+// GET /api/store-app/meter-readings
+// total_machines 來自 clawmachines is_active=true，不隨當日抄表浮動
+export interface MeterReadingItem {
+  store_id: number;
+  machine_code: string;
+  location_machine_number: string;
+  cpu_id: string;
+  last_reading_time: string | null;
+}
+
+export interface MeterReadingsResponse {
+  total_machines: number;
+  machines_with_data: number;
+  items: MeterReadingItem[];
 }
 
 // GET /api/store-app/machines/status
@@ -116,7 +138,12 @@ export interface PaymentItem {
   card_amount: number;
   total_revenue: number;
   prize_count: number;
+  /** 當日出貨成本，沒設成本時為 0 */
   cost: number;
+  /** 每件成本。已結算日 = 結算快照；今天 = 現行設定值。未設定為 null */
+  unit_cost: number | null;
+  /** 毛利 =（刷卡＋投幣）− 出貨成本。沒設成本時為 null（勿當 0 算） */
+  gross_profit: number | null;
   average_prize_rate: number;
   gift_play_count: number;
   free_play_count: number;
@@ -145,6 +172,8 @@ export interface PaymentsSummary {
   total_actual_daily_rent: number;
   total_card_play_count: number;
   total_transaction_count: number;
+  total_cost: number;
+  total_gross_profit: number;
 }
 
 export interface PaymentsResponse {

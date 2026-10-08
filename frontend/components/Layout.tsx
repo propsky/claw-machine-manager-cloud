@@ -13,7 +13,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const isActive = location.pathname === path;
     const baseClass = "flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer";
     const activeClass = "text-primary opacity-100";
-    const inactiveClass = "text-slate-400 dark:text-zinc-600 opacity-60 hover:opacity-100";
+    const inactiveClass = "text-slate-400 opacity-60 hover:opacity-100 dark:text-white dark:opacity-100";
     
     return `${baseClass} ${isActive ? activeClass : inactiveClass}`;
   };
@@ -40,6 +40,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div onClick={() => navigate('/finance')} className={getNavItemClass('/finance')}>
           <span className="material-symbols-outlined" style={getIconStyle('/finance')}>account_balance_wallet</span>
           <span className="text-[10px] font-bold">財務</span>
+        </div>
+        <div onClick={() => navigate('/transactions')} className={getNavItemClass('/transactions')}>
+          <span className="material-symbols-outlined" style={getIconStyle('/transactions')}>receipt_long</span>
+          <span className="text-[10px] font-bold">帳務</span>
         </div>
         <div onClick={() => navigate('/settings')} className={getNavItemClass('/settings')}>
           <span className="material-symbols-outlined" style={getIconStyle('/settings')}>settings</span>

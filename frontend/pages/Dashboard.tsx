@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { MachineStatus, ReadingsResponse, ReadingItem, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
-import { fetchReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
+import { MachineStatus, ReadingsResponse, MeterReadingsResponse, BalanceResponse, ActivityResponse, PaymentsResponse } from '../types';
+import { fetchMeterReadings, fetchBalance, fetchActivity, fetchPayments } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
@@ -9,8 +9,9 @@ const PLAY_PRICE = 10;
 
 type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'custom';
 
-function getMachineStatus(machine: ReadingItem): MachineStatus {
-  const lastTime = new Date(machine.last_reading_time);
+function getMachineStatus(lastReadingTime: string | null): MachineStatus {
+  if (!lastReadingTime) return MachineStatus.OFFLINE;
+  const lastTime = new Date(lastReadingTime);
   const now = new Date();
   const diffMinutes = Math.floor((now.getTime() - lastTime.getTime()) / (1000 * 60));
   // API 約 80 分鐘更新一次，設定 90 分鐘無回應視為離線
@@ -123,7 +124,7 @@ export const Dashboard: React.FC = () => {
   }, [selectedFilter]);
 
   // 即時資料（今日 readings，用於場地健康）
-  const [realtimeReadings, setRealtimeReadings] = useState<ReadingsResponse | null>(null);
+  const [realtimeReadings, setRealtimeReadings] = useState<MeterReadingsResponse | null>(null);
   // 篩選用的營收資料
   const [revenueData, setRevenueData] = useState<{ coin: number; epay: number } | null>(null);
   const [balanceData, setBalanceData] = useState<BalanceResponse | null>(null);
@@ -202,7 +203,7 @@ export const Dashboard: React.FC = () => {
   const loadRealtimeData = useCallback(async () => {
     try {
       const [readings, balance, activity] = await Promise.all([
-        fetchReadings(formatDate(new Date()), selectedStoreId || undefined),
+        fetchMeterReadings(selectedStoreId || undefined),
         fetchBalance(selectedStoreId || undefined),
         fetchActivity(selectedStoreId || undefined),
       ]);
@@ -263,8 +264,10 @@ export const Dashboard: React.FC = () => {
   }
 
   const machines = realtimeReadings?.items || [];
-  const onlineCount = machines.filter(m => getMachineStatus(m) === MachineStatus.ONLINE).length;
-  const offlineCount = machines.filter(m => getMachineStatus(m) === MachineStatus.OFFLINE).length;
+  // meter-readings 的 total_machines 來自 clawmachines is_active=true，不會浮動
+  // 離線 = 總數 − 在線，保證三數一致（未抄表機台一律視為離線）
+  const onlineCount = machines.filter(m => getMachineStatus(m.last_reading_time) === MachineStatus.ONLINE).length;
+  const offlineCount = Math.max(0, (realtimeReadings?.total_machines ?? 0) - onlineCount);
 
   // 各機台類型數量（健康狀態區塊用）
   const typeCountMap = useMemo(() => {
@@ -384,7 +387,7 @@ export const Dashboard: React.FC = () => {
         />
         <h2 className="text-lg font-bold leading-tight tracking-tight flex-1 text-center dark:text-white">營運總覽</h2>
         <div className="flex w-10 items-center justify-end relative">
-          <span className="material-symbols-outlined text-slate-600 dark:text-zinc-400">notifications</span>
+          <span className="material-symbols-outlined text-slate-600 dark:text-white">notifications</span>
         </div>
       </div>
 
@@ -403,7 +406,7 @@ export const Dashboard: React.FC = () => {
             className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
               selectedFilter === f.key
                 ? 'bg-primary text-background-dark'
-                : 'bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-white/15'
+                : 'bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-white hover:bg-slate-200 dark:hover:bg-white/15'
             }`}
           >
             {f.key === 'custom' && customStart && customEnd && selectedFilter === 'custom'
@@ -414,7 +417,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="flex flex-col items-center pt-4 pb-4">
-        <p className="text-slate-500 dark:text-zinc-500 text-sm font-bold tracking-wide">{filterTitle}</p>
+        <p className="text-slate-500 dark:text-white text-sm font-bold tracking-wide">{filterTitle}</p>
         <h1 className="text-primary tracking-tight text-[48px] font-bold leading-tight mt-1">
           {isRevenueLoading ? '--' : `$${totalRevenue.toLocaleString()}`}
         </h1>
@@ -423,7 +426,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-1 flex-col gap-1 rounded-xl p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-primary">payments</span>
-              <p className="text-slate-500 dark:text-zinc-400 text-xs font-bold">現金收入</p>
+              <p className="text-slate-500 dark:text-white text-xs font-bold">現金收入</p>
             </div>
             <p className="text-xl font-bold dark:text-white">
               {isRevenueLoading ? '--' : `$${totalCoinRevenue.toLocaleString()}`}
@@ -432,7 +435,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex flex-1 flex-col gap-1 rounded-xl p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-primary">devices</span>
-              <p className="text-slate-500 dark:text-zinc-400 text-xs font-bold">電支收入</p>
+              <p className="text-slate-500 dark:text-white text-xs font-bold">電支收入</p>
             </div>
             <p className="text-xl font-bold dark:text-white">
               {isRevenueLoading ? '--' : `$${totalEpayRevenue.toLocaleString()}`}
@@ -451,7 +454,7 @@ export const Dashboard: React.FC = () => {
             <span className="material-symbols-outlined text-primary">insights</span>
           </div>
           <div>
-            <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">營收報表</p>
+            <p className="text-slate-500 dark:text-white text-base font-bold">營收報表</p>
             <p className="text-primary text-lg font-bold">
               {revenueReport ? `$${revenueReport.totalRevenue.toLocaleString()}` : '--'}
             </p>
@@ -463,9 +466,9 @@ export const Dashboard: React.FC = () => {
               <span className="material-symbols-outlined text-primary">account_balance_wallet</span>
             </div>
             <div>
-              <p className="text-slate-500 dark:text-zinc-400 text-base font-bold">可提領金額</p>
+              <p className="text-slate-500 dark:text-white text-base font-bold">可提領金額</p>
               <p className="text-primary text-lg font-bold">
-                {loading || availableBalance === null ? '--' : `$${availableBalance.toLocaleString()}`}
+                {loading || availableBalance === null ? '--' : `$${Math.floor(availableBalance).toLocaleString()}`}
               </p>
             </div>
           </div>
@@ -475,14 +478,14 @@ export const Dashboard: React.FC = () => {
       {/* Health List */}
       <div className="px-4 pb-2">
         <div className="flex items-center justify-between mb-3 px-1">
-          <h3 className="text-sm font-bold text-slate-500 dark:text-zinc-400 tracking-wider">場地健康狀態</h3>
-          <span className="text-[10px] font-bold bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded text-zinc-500">即時更新</span>
+          <h3 className="text-sm font-bold text-slate-500 dark:text-white tracking-wider">場地健康狀態</h3>
+          <span className="text-[10px] font-bold bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 rounded text-zinc-500 dark:text-white">即時更新</span>
         </div>
         <div className="flex flex-col gap-0 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 overflow-hidden shadow-sm">
           <div className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-slate-400">toys</span>
-              <span className="text-sm font-bold dark:text-slate-200">總機台數</span>
+              <span className="material-symbols-outlined text-slate-400 dark:text-white">toys</span>
+              <span className="text-sm font-bold dark:text-white">總機台數</span>
             </div>
             <span className="text-sm font-bold bg-slate-100 dark:bg-zinc-800 px-3 py-1 rounded-full dark:text-white">
               {loading ? '--' : realtimeReadings?.total_machines || 0}
@@ -492,7 +495,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
             <div className="flex items-center gap-3">
               <span className="flex h-2.5 w-2.5 rounded-full bg-success"></span>
-              <span className="text-sm font-bold dark:text-slate-200">在線機台</span>
+              <span className="text-sm font-bold dark:text-white">在線機台</span>
             </div>
             <span className="text-sm font-bold text-success">{loading ? '--' : onlineCount}</span>
           </div>
@@ -500,7 +503,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
             <div className="flex items-center gap-3">
               <span className="flex h-2.5 w-2.5 rounded-full bg-danger"></span>
-              <span className="text-sm font-bold dark:text-slate-200">離線機台</span>
+              <span className="text-sm font-bold dark:text-white">離線機台</span>
             </div>
             <span className="text-sm font-bold text-danger">{loading ? '--' : offlineCount}</span>
           </div>
@@ -509,12 +512,12 @@ export const Dashboard: React.FC = () => {
             <>
               <div className="h-[1px] bg-slate-100 dark:bg-zinc-800 mx-4"></div>
               <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-xs font-bold text-slate-400 dark:text-zinc-500">機台類型分佈</span>
+                <span className="text-xs font-bold text-slate-400 dark:text-white">機台類型分佈</span>
                 <div className="flex gap-2 flex-wrap justify-end">
                   {(Object.keys(MACHINE_TYPE_INFO) as MachineType[])
                     .filter(t => typeCountMap.has(t))
                     .map(t => (
-                      <span key={t} className="text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
+                      <span key={t} className="text-xs font-bold text-slate-500 dark:text-white bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
                         {MACHINE_TYPE_INFO[t].icon} {typeCountMap.get(t)}
                       </span>
                     ))}
@@ -529,7 +532,7 @@ export const Dashboard: React.FC = () => {
       {recentActivity.length > 0 && (
         <div className="px-4 pb-6 pt-2">
           <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-slate-500 dark:text-zinc-400 tracking-wider">最近帳務</h3>
+            <h3 className="text-sm font-bold text-slate-500 dark:text-white tracking-wider">最近帳務</h3>
           </div>
           <div className="flex flex-col gap-0 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 overflow-hidden shadow-sm divide-y divide-slate-100 dark:divide-zinc-800">
             {recentActivity.map((item, idx) => (
@@ -546,7 +549,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium dark:text-white">{item.description}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-white/40">{item.date}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-white">{item.date}</p>
                   </div>
                 </div>
                 <span className={`text-sm font-bold ${
@@ -593,7 +596,7 @@ export const Dashboard: React.FC = () => {
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
                       revenueFilter === f.key
                         ? 'bg-primary text-background-dark'
-                        : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white/50 hover:bg-slate-200 dark:hover:bg-white/15'
+                        : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white hover:bg-slate-200 dark:hover:bg-white/15'
                     }`}
                   >
                     {f.label}
@@ -608,7 +611,7 @@ export const Dashboard: React.FC = () => {
                     className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
                       reportTypeFilter === 'all'
                         ? 'bg-primary/20 text-primary'
-                        : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white/40 hover:bg-slate-200 dark:hover:bg-white/10'
+                        : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10'
                     }`}
                   >
                     全類型
@@ -620,7 +623,7 @@ export const Dashboard: React.FC = () => {
                       className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
                         reportTypeFilter === t
                           ? 'bg-primary/20 text-primary'
-                          : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white/40 hover:bg-slate-200 dark:hover:bg-white/10'
+                          : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10'
                       }`}
                     >
                       {MACHINE_TYPE_INFO[t].icon} {MACHINE_TYPE_INFO[t].name}
@@ -636,7 +639,7 @@ export const Dashboard: React.FC = () => {
                 <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
                 {loadProgress !== null && loadProgress < 100 ? (
                   <div className="flex flex-col items-center gap-2 w-48">
-                    <p className="text-slate-500 dark:text-white/50 text-sm">載入中 {loadProgress}%</p>
+                    <p className="text-slate-500 dark:text-white text-sm">載入中 {loadProgress}%</p>
                     <div className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary rounded-full transition-all duration-300"
@@ -645,7 +648,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-slate-500 dark:text-white/50 text-sm">載入中</p>
+                  <p className="text-slate-500 dark:text-white text-sm">載入中</p>
                 )}
               </div>
             )}
@@ -654,11 +657,11 @@ export const Dashboard: React.FC = () => {
               {/* 總覽數據 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-slate-500 dark:text-white/50 text-xs">遊戲次數</p>
+                  <p className="text-slate-500 dark:text-white text-xs">遊戲次數</p>
                   <p className="text-slate-900 dark:text-white font-bold text-lg">{revenueReport?.totalPlays || 0}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-slate-500 dark:text-white/50 text-xs">總營收</p>
+                  <p className="text-slate-500 dark:text-white text-xs">總營收</p>
                   <p className="text-primary font-bold text-lg">${(revenueReport?.totalRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
@@ -666,11 +669,11 @@ export const Dashboard: React.FC = () => {
               {/* 現金與電支 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-slate-500 dark:text-white/50 text-xs">現金收入</p>
+                  <p className="text-slate-500 dark:text-white text-xs">現金收入</p>
                   <p className="text-green-400 font-bold">${(revenueReport?.coinRevenue || 0).toLocaleString()}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-slate-500 dark:text-white/50 text-xs">電支收入</p>
+                  <p className="text-slate-500 dark:text-white text-xs">電支收入</p>
                   <p className="text-blue-400 font-bold">${(revenueReport?.cardRevenue || 0).toLocaleString()}</p>
                 </div>
               </div>
@@ -678,11 +681,11 @@ export const Dashboard: React.FC = () => {
               {/* 均日營收 & 出獎率 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-slate-500 dark:text-white/50 text-xs">均日營收</p>
+                  <p className="text-slate-500 dark:text-white text-xs">均日營收</p>
                   <p className="text-yellow-400 font-bold">${(revenueReport?.avgDailyRevenue || 0).toLocaleString()}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">
-                  <p className="text-slate-500 dark:text-white/50 text-xs">均出</p>
+                  <p className="text-slate-500 dark:text-white text-xs">均出</p>
                   <p className="text-purple-400 font-bold">${(revenueReport?.avgPayout || 0).toLocaleString()}</p>
                 </div>
               </div>
@@ -690,7 +693,7 @@ export const Dashboard: React.FC = () => {
               {/* 出貨數量 */}
               <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 dark:text-white/50 text-xs">總出貨數</span>
+                  <span className="text-slate-500 dark:text-white text-xs">總出貨數</span>
                   <span className="text-slate-900 dark:text-white font-bold">{revenueReport?.totalGiftCount || 0} 個</span>
                 </div>
               </div>
@@ -714,7 +717,7 @@ export const Dashboard: React.FC = () => {
                             <span className="text-slate-900 dark:text-white text-sm">
                               <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
                             </span>
-                            <span className="text-slate-500 dark:text-white/50 text-xs">{m.store_name}</span>
+                            <span className="text-slate-500 dark:text-white text-xs">{m.store_name}</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -746,7 +749,7 @@ export const Dashboard: React.FC = () => {
                             <span className="text-slate-900 dark:text-white text-sm">
                               <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
                             </span>
-                            <span className="text-slate-500 dark:text-white/50 text-xs">{m.store_name}</span>
+                            <span className="text-slate-500 dark:text-white text-xs">{m.store_name}</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -763,7 +766,7 @@ export const Dashboard: React.FC = () => {
                 revenueReport.topMachines.filter(m => reportTypeFilter === 'all' || m.machineType === reportTypeFilter)
               ).length > 0 && (
                 <div>
-                  <p className="text-slate-600 dark:text-white/70 text-sm font-bold mb-2 flex items-center gap-1">
+                  <p className="text-slate-600 dark:text-white text-sm font-bold mb-2 flex items-center gap-1">
                     <span>🏆</span> 營收 TOP 3
                   </p>
                   <div className="space-y-2">
@@ -772,19 +775,19 @@ export const Dashboard: React.FC = () => {
                       .map((m, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-slate-50 dark:bg-white/5 rounded-xl p-3">
                         <div className="flex items-center gap-2">
-                          <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300' : 'text-amber-600'}`}>
+                          <span className={`font-bold ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-gray-300 dark:text-white' : 'text-amber-600'}`}>
                             {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                           </span>
                           <div className="flex flex-col">
                             <span className="text-slate-900 dark:text-white text-sm">
                               <span className="mr-1">{MACHINE_TYPE_INFO[m.machineType].icon}</span>{m.name}
                             </span>
-                            <span className="text-slate-500 dark:text-white/50 text-xs">{m.store_name}</span>
+                            <span className="text-slate-500 dark:text-white text-xs">{m.store_name}</span>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-primary font-bold">${m.revenue.toLocaleString()}</p>
-                          <p className="text-slate-500 dark:text-white/50 text-xs">{m.plays} 次</p>
+                          <p className="text-slate-500 dark:text-white text-xs">{m.plays} 次</p>
                         </div>
                       </div>
                     ))}

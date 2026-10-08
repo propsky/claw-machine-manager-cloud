@@ -51,14 +51,14 @@ export const DateRangeSheet: React.FC<DateRangeSheetProps> = ({
         {/* Header */}
         <div className="px-6 pt-2 pb-6 z-10">
           <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">自訂日期範圍</h1>
-          <p className="text-slate-500 dark:text-white/50 text-sm text-center mt-1">選擇要查看的日期區間</p>
+          <p className="text-slate-500 dark:text-white text-sm text-center mt-1">選擇要查看的日期區間</p>
         </div>
 
         {/* Content */}
         <div className="px-6 space-y-5 z-10">
           {/* Start Date */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-600 dark:text-white/70 text-sm font-medium">開始日期</label>
+            <label className="text-slate-600 dark:text-white text-sm font-medium">開始日期</label>
             <input
               type="date"
               value={start}
@@ -69,7 +69,7 @@ export const DateRangeSheet: React.FC<DateRangeSheetProps> = ({
 
           {/* End Date */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-600 dark:text-white/70 text-sm font-medium">結束日期</label>
+            <label className="text-slate-600 dark:text-white text-sm font-medium">結束日期</label>
             <input
               type="date"
               value={end}

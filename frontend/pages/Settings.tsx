@@ -12,6 +12,14 @@ import { Toast, ToastType } from '../components/Toast';
 // 版本更新記錄
 const CHANGELOG = [
   {
+    version: '3.3.2',
+    date: '2026-08-14',
+    features: [
+      '修正日期篩選模式下（今日／昨日等）機台的重啟與遠端投幣按鈕無法點擊的問題',
+      '機台控制指令改以 cpu_id 對照取得機台 ID，日期模式與即時抄表皆可操作',
+    ]
+  },
+  {
     version: '3.3.1',
     date: '2026-04-13',
     features: [
@@ -154,21 +162,6 @@ export const Settings: React.FC = () => {
     if (outcome === 'accepted') {
       setCanInstall(false);
       installPromptRef.current = null;
-    }
-  };
-
-  // 隱藏開發功能：連點版本資訊 20 下解鎖提領金額顯示
-  const [devTapCount, setDevTapCount] = useState(0);
-  const handleVersionTap = () => {
-    const next = devTapCount + 1;
-    if (next === 20) {
-      const current = localStorage.getItem('show_balance') === '1';
-      localStorage.setItem('show_balance', current ? '0' : '1');
-      setToast({ message: current ? '已隱藏提領功能' : '🔓 已解鎖提領功能', type: current ? 'info' : 'success' });
-      setDevTapCount(0);
-    } else {
-      if (next >= 15) setToast({ message: `還差 ${20 - next} 下解鎖`, type: 'info' });
-      setDevTapCount(next);
     }
   };
 
@@ -346,7 +339,7 @@ export const Settings: React.FC = () => {
             <span className="material-symbols-outlined text-primary mt-0.5">visibility</span>
             <div>
               <p className="text-primary font-bold text-sm">訪客體驗模式</p>
-              <p className="text-slate-500 dark:text-white/50 text-xs mt-0.5">目前顯示的是示範資料，不會連接真實機台。若要使用完整功能，請登入正式帳號。</p>
+              <p className="text-slate-500 dark:text-white text-xs mt-0.5">目前顯示的是示範資料，不會連接真實機台。若要使用完整功能，請登入正式帳號。</p>
             </div>
           </div>
         )}
@@ -360,7 +353,7 @@ export const Settings: React.FC = () => {
 
         {/* Account Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">帳戶</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white px-1">帳戶</h3>
           <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
             <button
               onClick={() => { loadProfile(); setShowProfileEdit(true); }}
@@ -372,10 +365,10 @@ export const Settings: React.FC = () => {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold">個人資料</p>
-                  <p className="text-xs text-slate-400 dark:text-white/40">管理您的基本資訊</p>
+                  <p className="text-xs text-slate-400 dark:text-white">管理您的基本資訊</p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
+              <span className="material-symbols-outlined text-slate-300 dark:text-white">chevron_right</span>
             </button>
 
             {/* 銀行帳戶 - 可點擊展開 */}
@@ -383,18 +376,18 @@ export const Settings: React.FC = () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-4">
                   <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-slate-500 dark:text-white/60">account_balance</span>
+                    <span className="material-symbols-outlined text-slate-500 dark:text-white">account_balance</span>
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-bold">收款銀行帳戶</p>
-                    <p className="text-xs text-slate-400 dark:text-white/40">{defaultDisplay}</p>
+                    <p className="text-xs text-slate-400 dark:text-white">{defaultDisplay}</p>
                   </div>
                 </div>
               </div>
 
               {/* 銀行帳戶列表 */}
               {loading ? (
-                <div className="text-center py-4 text-slate-400 dark:text-white/40 text-sm">載入中...</div>
+                <div className="text-center py-4 text-slate-400 dark:text-white text-sm">載入中...</div>
               ) : bankAccounts.length > 0 ? (
                 <div className="space-y-2 mt-4">
                   {bankAccounts.map((account) => (
@@ -412,10 +405,10 @@ export const Settings: React.FC = () => {
                             {account.bank_name}
                             {account.is_default && <span className="ml-2 text-xs text-primary">(預設)</span>}
                           </p>
-                          <p className="text-xs text-slate-400 dark:text-white/40">
+                          <p className="text-xs text-slate-400 dark:text-white">
                             {account.branch_name || ''} {account.account_number}
                           </p>
-                          <p className="text-xs text-slate-400 dark:text-white/40">{account.account_holder_name}</p>
+                          <p className="text-xs text-slate-400 dark:text-white">{account.account_holder_name}</p>
                         </div>
                         <div className="flex gap-2">
                           {!account.is_default && (
@@ -438,7 +431,7 @@ export const Settings: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-center py-4 text-slate-400 dark:text-white/40 text-sm">尚未設定銀行帳戶</p>
+                <p className="text-center py-4 text-slate-400 dark:text-white text-sm">尚未設定銀行帳戶</p>
               )}
 
               {/* 新增按鈕 */}
@@ -463,7 +456,7 @@ export const Settings: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* 銀行代碼 */}
               <div>
-                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">銀行</label>
+                <label className="block text-xs text-slate-400 dark:text-white mb-1">銀行</label>
                 <select
                   value={formData.bank_code}
                   onChange={(e) => handleBankCodeChange(e.target.value)}
@@ -481,7 +474,7 @@ export const Settings: React.FC = () => {
 
               {/* 分行名稱 */}
               <div>
-                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">分行名稱（選填）</label>
+                <label className="block text-xs text-slate-400 dark:text-white mb-1">分行名稱（選填）</label>
                 <input
                   type="text"
                   value={formData.branch_name}
@@ -493,7 +486,7 @@ export const Settings: React.FC = () => {
 
               {/* 帳號 */}
               <div>
-                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">帳號</label>
+                <label className="block text-xs text-slate-400 dark:text-white mb-1">帳號</label>
                 <input
                   type="text"
                   value={formData.account_number}
@@ -506,7 +499,7 @@ export const Settings: React.FC = () => {
 
               {/* 戶名 */}
               <div>
-                <label className="block text-xs text-slate-400 dark:text-white/40 mb-1">戶名</label>
+                <label className="block text-xs text-slate-400 dark:text-white mb-1">戶名</label>
                 <input
                   type="text"
                   value={formData.account_holder_name}
@@ -561,17 +554,17 @@ export const Settings: React.FC = () => {
 
         {/* Preferences Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">偏好設定</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white px-1">偏好設定</h3>
           <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
             {/* 外觀主題 */}
             <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/5">
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">{isDark ? 'dark_mode' : 'light_mode'}</span>
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white">{isDark ? 'dark_mode' : 'light_mode'}</span>
                 </div>
                 <div>
                   <p className="text-sm font-bold">外觀主題</p>
-                  <p className="text-xs text-slate-400 dark:text-white/40">{isDark ? '深色模式' : '淺色模式'}</p>
+                  <p className="text-xs text-slate-400 dark:text-white">{isDark ? '深色模式' : '淺色模式'}</p>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -582,11 +575,11 @@ export const Settings: React.FC = () => {
             <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/5">
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">notifications</span>
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white">notifications</span>
                 </div>
                 <div>
                   <p className="text-sm font-bold">通知設定</p>
-                  <p className="text-xs text-slate-400 dark:text-white/40">機台異常即時告警</p>
+                  <p className="text-xs text-slate-400 dark:text-white">機台異常即時告警</p>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -597,21 +590,21 @@ export const Settings: React.FC = () => {
             <button className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">language</span>
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white">language</span>
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold">系統語言</p>
-                  <p className="text-xs text-slate-400 dark:text-white/40">繁體中文</p>
+                  <p className="text-xs text-slate-400 dark:text-white">繁體中文</p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
+              <span className="material-symbols-outlined text-slate-300 dark:text-white">chevron_right</span>
             </button>
           </div>
         </section>
 
         {/* 安裝 App Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">安裝 App</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white px-1">安裝 App</h3>
           <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
             <button
               onClick={() => setShowInstall(true)}
@@ -623,14 +616,14 @@ export const Settings: React.FC = () => {
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold">加到手機桌面</p>
-                  <p className="text-xs text-slate-400 dark:text-white/40">
+                  <p className="text-xs text-slate-400 dark:text-white">
                     {isInStandaloneMode ? '已安裝為 App' : '掃碼或查看安裝說明'}
                   </p>
                 </div>
               </div>
               {isInStandaloneMode
                 ? <span className="text-xs text-primary px-2 py-1 bg-primary/10 rounded-md">已安裝</span>
-                : <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
+                : <span className="material-symbols-outlined text-slate-300 dark:text-white">chevron_right</span>
               }
             </button>
           </div>
@@ -638,20 +631,20 @@ export const Settings: React.FC = () => {
 
         {/* About Section */}
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40 px-1">關於</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white px-1">關於</h3>
           <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
             {/* 版本資訊 */}
-            <div className="flex items-center justify-between p-4 select-none" onClick={handleVersionTap}>
+            <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
                 <div className="size-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-slate-500 dark:text-white/60">info</span>
+                  <span className="material-symbols-outlined text-slate-500 dark:text-white">info</span>
                 </div>
                 <div>
                   <p className="text-sm font-bold">版本資訊</p>
-                  <p className="text-xs text-slate-400 dark:text-white/40">Version {__APP_VERSION__}</p>
+                  <p className="text-xs text-slate-400 dark:text-white">Version {__APP_VERSION__}</p>
                 </div>
               </div>
-              <span className="text-xs text-slate-400 dark:text-white/20 px-2 py-1 bg-slate-100 dark:bg-white/5 rounded-md font-mono">最新版本</span>
+              <span className="text-xs text-slate-400 dark:text-white px-2 py-1 bg-slate-100 dark:bg-white/5 rounded-md font-mono">最新版本</span>
             </div>
 
             {/* 更新記錄按鈕 */}
@@ -665,17 +658,17 @@ export const Settings: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold">更新記錄</p>
-                  <p className="text-xs text-slate-400 dark:text-white/40">查看近 5 次版本更新</p>
+                  <p className="text-xs text-slate-400 dark:text-white">查看近 5 次版本更新</p>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-slate-300 dark:text-white/20">chevron_right</span>
+              <span className="material-symbols-outlined text-slate-300 dark:text-white">chevron_right</span>
             </div>
           </div>
         </section>
 
         {/* 關於我們 */}
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold text-slate-400 dark:text-white/40 uppercase tracking-wider px-1">關於我們</h2>
+          <h2 className="text-xs font-semibold text-slate-400 dark:text-white uppercase tracking-wider px-1">關於我們</h2>
           <a
             href="https://www.propskynet.com/"
             target="_blank"
@@ -685,12 +678,12 @@ export const Settings: React.FC = () => {
             <img src="/propsky-logo.png" alt="Propsky" className="h-8 object-contain" />
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold">擎天有限公司</p>
-              <p className="text-xs text-slate-400 dark:text-white/40">www.propskynet.com</p>
+              <p className="text-xs text-slate-400 dark:text-white">www.propskynet.com</p>
             </div>
-            <span className="material-symbols-outlined text-slate-300 dark:text-white/30">open_in_new</span>
+            <span className="material-symbols-outlined text-slate-300 dark:text-white">open_in_new</span>
           </a>
           <div className="bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 px-4 py-3 space-y-1">
-            <p className="text-xs text-slate-500 dark:text-white/60">擎天娃娃機管理平台，提供雲端物聯卡、後台管理系統、電子支付整合與行銷解決方案。</p>
+            <p className="text-xs text-slate-500 dark:text-white">擎天娃娃機管理平台，提供雲端物聯卡、後台管理系統、電子支付整合與行銷解決方案。</p>
             <a
               href="https://lin.ee/Mz1uIEc"
               target="_blank"
@@ -712,7 +705,7 @@ export const Settings: React.FC = () => {
             <span className="material-symbols-outlined">logout</span>
             登出帳號
           </button>
-          <p className="text-center text-[10px] text-slate-300 dark:text-white/20 mt-6">擎天智慧販賣機管理 © 2026</p>
+          <p className="text-center text-[10px] text-slate-300 dark:text-white mt-6">擎天智慧販賣機管理 © 2026</p>
         </section>
       </main>
 
@@ -735,11 +728,11 @@ export const Settings: React.FC = () => {
             </div>
             <div className="px-6 pb-4">
               <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">個人資料</h1>
-              <p className="text-slate-500 dark:text-white/50 text-sm text-center mt-1">填寫完整以便提領</p>
+              <p className="text-slate-500 dark:text-white text-sm text-center mt-1">填寫完整以便提領</p>
             </div>
             <form onSubmit={handleProfileSubmit} className="px-6 space-y-4">
               <div>
-                <label className="text-slate-600 dark:text-white/70 text-sm font-medium block mb-2">真實姓名</label>
+                <label className="text-slate-600 dark:text-white text-sm font-medium block mb-2">真實姓名</label>
                 <input
                   type="text"
                   value={profileForm.real_name}
@@ -750,7 +743,7 @@ export const Settings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="text-slate-600 dark:text-white/70 text-sm font-medium block mb-2">聯絡電話</label>
+                <label className="text-slate-600 dark:text-white text-sm font-medium block mb-2">聯絡電話</label>
                 <input
                   type="tel"
                   value={profileForm.phone}
@@ -761,7 +754,7 @@ export const Settings: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="text-slate-600 dark:text-white/70 text-sm font-medium block mb-2">身份證字號</label>
+                <label className="text-slate-600 dark:text-white text-sm font-medium block mb-2">身份證字號</label>
                 <input
                   type="text"
                   value={profileForm.id_card_number}
@@ -800,7 +793,7 @@ export const Settings: React.FC = () => {
           <div className="relative w-full max-w-md bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/10">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">更新記錄</h2>
-              <button onClick={() => setShowChangelog(false)} className="text-slate-400">
+              <button onClick={() => setShowChangelog(false)} className="text-slate-400 dark:text-white">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -809,11 +802,11 @@ export const Settings: React.FC = () => {
                 <div key={item.version} className="bg-slate-50 dark:bg-white/5 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-primary font-bold">v{item.version}</span>
-                    <span className="text-xs text-slate-400 dark:text-white/40">{item.date}</span>
+                    <span className="text-xs text-slate-400 dark:text-white">{item.date}</span>
                   </div>
                   <ul className="space-y-1">
                     {item.features.map((feature, idx) => (
-                      <li key={idx} className="text-sm text-slate-600 dark:text-white/70 flex items-start gap-2">
+                      <li key={idx} className="text-sm text-slate-600 dark:text-white flex items-start gap-2">
                         <span className="text-primary mt-1">•</span>
                         {feature}
                       </li>
@@ -836,7 +829,7 @@ export const Settings: React.FC = () => {
             <div className="flex items-center justify-between px-6 pb-4">
               <h2 className="text-lg font-bold">加到手機桌面</h2>
               <button onClick={() => setShowInstall(false)}>
-                <span className="material-symbols-outlined text-slate-400 dark:text-white/40">close</span>
+                <span className="material-symbols-outlined text-slate-400 dark:text-white">close</span>
               </button>
             </div>
 
@@ -851,7 +844,7 @@ export const Settings: React.FC = () => {
 
               {/* QR Code */}
               <div className="flex flex-col items-center gap-3">
-                <p className="text-xs text-slate-400 dark:text-white/40">掃描 QR Code 在其他裝置開啟</p>
+                <p className="text-xs text-slate-400 dark:text-white">掃描 QR Code 在其他裝置開啟</p>
                 <div className="p-3 bg-white rounded-2xl">
                   <QRCodeSVG
                     value={profileData?.id ? `${appUrl}?ref=${profileData.id}` : appUrl}
@@ -861,7 +854,7 @@ export const Settings: React.FC = () => {
                     level="M"
                   />
                 </div>
-                <p className="text-[11px] text-slate-300 dark:text-white/30 font-mono">
+                <p className="text-[11px] text-slate-300 dark:text-white font-mono">
                   {profileData?.id ? `${appUrl}?ref=${profileData.id}` : appUrl}
                 </p>
               </div>
@@ -880,7 +873,7 @@ export const Settings: React.FC = () => {
               {/* iOS 安裝說明 */}
               {isIOS && !isInStandaloneMode && (
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-slate-500 dark:text-white/60 uppercase tracking-widest">iPhone / iPad 安裝步驟</p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-white uppercase tracking-widest">iPhone / iPad 安裝步驟</p>
                   <div className="space-y-2">
                     {[
                       { icon: 'open_in_browser', text: '用 Safari 開啟此頁' },
@@ -890,18 +883,18 @@ export const Settings: React.FC = () => {
                     ].map((step, i) => (
                       <div key={i} className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 rounded-xl px-4 py-3">
                         <span className="material-symbols-outlined text-primary text-xl">{step.icon}</span>
-                        <span className="text-sm text-slate-700 dark:text-white/80">{step.text}</span>
+                        <span className="text-sm text-slate-700 dark:text-white">{step.text}</span>
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px] text-slate-300 dark:text-white/30 text-center pt-1">※ 必須使用 Safari，Chrome 不支援 iOS 安裝</p>
+                  <p className="text-[11px] text-slate-300 dark:text-white text-center pt-1">※ 必須使用 Safari，Chrome 不支援 iOS 安裝</p>
                 </div>
               )}
 
               {/* 非 iOS 且無 install prompt 的說明 */}
               {!isIOS && !canInstall && !isInStandaloneMode && (
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-slate-500 dark:text-white/60 uppercase tracking-widest">Android 安裝步驟</p>
+                  <p className="text-xs font-bold text-slate-500 dark:text-white uppercase tracking-widest">Android 安裝步驟</p>
                   <div className="space-y-2">
                     {[
                       { icon: 'open_in_browser', text: '用 Chrome 開啟此頁' },
@@ -911,7 +904,7 @@ export const Settings: React.FC = () => {
                     ].map((step, i) => (
                       <div key={i} className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 rounded-xl px-4 py-3">
                         <span className="material-symbols-outlined text-primary text-xl">{step.icon}</span>
-                        <span className="text-sm text-slate-700 dark:text-white/80">{step.text}</span>
+                        <span className="text-sm text-slate-700 dark:text-white">{step.text}</span>
                       </div>
                     ))}
                   </div>
