@@ -1,3 +1,5 @@
+import { clearStoresCache } from './storeCache';
+
 const TOKEN_KEY = 'smartpay_token';
 const GUEST_KEY = 'smartpay_guest';
 
@@ -15,10 +17,13 @@ export async function login(username: string, password: string): Promise<void> {
 
   const data = await response.json();
   localStorage.setItem(TOKEN_KEY, data.access_token);
+  // 場地清單依帳號而異，換帳號登入時不可沿用上一個帳號的快取
+  clearStoresCache();
 }
 
 export function loginAsGuest(): void {
   localStorage.removeItem(TOKEN_KEY);
+  clearStoresCache();
   localStorage.setItem(GUEST_KEY, 'true');
 }
 
@@ -29,6 +34,7 @@ export function isGuest(): boolean {
 export function logout(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(GUEST_KEY);
+  clearStoresCache();
   window.location.hash = '#/login';
 }
 

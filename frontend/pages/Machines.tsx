@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
-import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
+import { fetchReadings, fetchPayments, fetchStores, restartMachine, startMachine, type StoreOption } from '../services/api';
+import { getStoresWithCache } from '../services/storeCache';
 import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -128,6 +129,7 @@ export const Machines: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<MachineType | 'all'>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+  const [stores, setStores] = useState<StoreOption[] | null>(null);
   
   // 自訂日期
   const [showDateSheet, setShowDateSheet] = useState(false);
@@ -235,6 +237,13 @@ export const Machines: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadToday]);
 
+  // 後台場地清單：店名對照 + 判斷帳號是否已綁定店家
+  useEffect(() => {
+    getStoresWithCache(fetchStores)
+      .then(setStores)
+      .catch(err => console.error('載入場地清單失敗:', err));
+  }, []);
+
   useEffect(() => {
     if (!selectedMachine) return;
     setModalNote(localStorage.getItem(noteKey(selectedMachine.cpu_id)) || '');
@@ -271,18 +280,22 @@ export const Machines: React.FC = () => {
     return map;
   }, [todayReadings]);
 
-  // store_name → store_id 對照（從今日 readings 取得，供多日 payments 過濾用）
+  // store_name → store_id 對照，供 payments（只有店名）過濾用
+  // 以後台場地清單為主：今日沒有抄表的店也查得到；readings 只當補充
   const storeNameToId = useMemo(() => {
     const map = new Map<string, number>();
     (todayReadings?.items || []).forEach(item => map.set(item.store_name, item.store_id));
+    (stores || []).forEach(s => map.set(s.name, s.id));
     return map;
-  }, [todayReadings]);
+  }, [todayReadings, stores]);
 
   // 選中場地名稱（多日模式的 store 過濾備用）
   const selectedStoreName = useMemo(() => {
     if (!selectedStoreId) return null;
-    return todayReadings?.items.find(i => i.store_id === selectedStoreId)?.store_name ?? null;
-  }, [selectedStoreId, todayReadings]);
+    return stores?.find(s => s.id === selectedStoreId)?.name
+      ?? todayReadings?.items.find(i => i.store_id === selectedStoreId)?.store_name
+      ?? null;
+  }, [selectedStoreId, stores, todayReadings]);
 
   // 統一機台顯示資料
   const allMachineItems = useMemo((): MachineViewItem[] => {
@@ -519,6 +532,30 @@ export const Machines: React.FC = () => {
           <div className="bg-red-50 dark:bg-bright-red/10 border border-red-200 dark:border-bright-red/30 rounded-xl p-4 text-red-600 dark:text-bright-red text-center">
             {error}
           </div>
+        )}
+
+        {/* 空狀態 */}
+        {!isLoading && !error && filteredMachines.length === 0 && (() => {
+          const [icon, title, hint] = stores !== null && stores.length === 0
+            ? ['storefront', '尚未綁定店家', '請聯絡管理員為此帳號綁定店家後，即可查看機台']
+            : dateFilter === 'realtime'
+              ? ['sensors_off', '目前沒有即時抄表資料', '即時抄表只顯示今日有抄表的機台；未上線的機台請切換到「今日」等列表模式查看']
+              : ['search_off', '沒有符合條件的機台', '請調整場地、狀態或類型篩選'];
+          return (
+            <div className="flex flex-col items-center text-center py-16 px-6">
+              <span className="material-symbols-outlined text-5xl text-slate-400 dark:text-white mb-3">{icon}</span>
+              <p className="text-base font-bold text-slate-900 dark:text-white mb-1">{title}</p>
+              <p className="text-sm text-slate-500 dark:text-white leading-relaxed">{hint}</p>
+            </div>
+          );
+        })()}
+
+        {/* 即時抄表範圍說明（使用者常以為機台不見） */}
+        {!isLoading && !error && dateFilter === 'realtime' && filteredMachines.length > 0 && (
+          <p className="flex items-center gap-1.5 px-1 text-xs font-medium text-amber-600 dark:text-amber-300">
+            <span className="material-symbols-outlined text-sm">info</span>
+            僅顯示今日有抄表的機台，未上線機台請至「今日」列表查看
+          </p>
         )}
 
         {!isLoading && !error && (() => {
