@@ -3,6 +3,7 @@ import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchPayments, restartMachine, startMachine } from '../services/api';
 import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
 const MACHINES_CACHE_TTL = 5 * 60 * 1000;
 let todayCache: { data: ReadingsResponse; cachedAt: number } | null = null;
@@ -141,6 +142,27 @@ export const Machines: React.FC = () => {
   // 機台控制
   const [selectedMachine, setSelectedMachine] = useState<MachineViewItem | null>(null);
   const [controlLoading, setControlLoading] = useState(false);
+  const [pendingControl, setPendingControl] = useState<'restart' | 'start' | null>(null);
+  const [controlResult, setControlResult] = useState<string | null>(null);
+
+  const runControl = (action: 'restart' | 'start') => {
+    if (!selectedMachine?.machine_id) return;
+    setPendingControl(null);
+    setControlLoading(true);
+    const request = action === 'restart'
+      ? restartMachine(selectedMachine.machine_id)
+      : startMachine(selectedMachine.machine_id);
+    request
+      .then(() => {
+        setControlResult(action === 'restart'
+          ? '✅ 指令已發送，請稍後查看機台狀態'
+          : '遠端投幣指令已送出，請確認機台是否成功投幣啟動');
+      })
+      .catch((err) => {
+        setControlResult('❌ 發送失敗：' + (err.message || err.detail || '未知錯誤'));
+      })
+      .finally(() => setControlLoading(false));
+  };
 
   // Modal 備註 + 補貨/檢查紀錄
   const [modalNote, setModalNote] = useState('');
@@ -382,13 +404,13 @@ export const Machines: React.FC = () => {
           <div className="flex items-center gap-1 w-20 justify-end">
             <button
               onClick={() => setShowSortSheet(true)}
-              className={`transition-colors ${sortBy !== 'default' ? 'text-primary' : 'text-slate-400 hover:text-primary'}`}
+              className={`transition-colors ${sortBy !== 'default' ? 'text-primary' : 'text-slate-400 dark:text-white hover:text-primary'}`}
             >
               <span className="material-symbols-outlined">sort</span>
             </button>
             <button
               onClick={() => { loadToday(true); if (dateFilter === 'custom' && customStart && customEnd) loadFilterData('custom', { start: customStart, end: customEnd }); else loadFilterData(dateFilter); }}
-              className="text-slate-400 hover:text-primary transition-colors"
+              className="text-slate-400 dark:text-white hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined">refresh</span>
             </button>
@@ -408,7 +430,7 @@ export const Machines: React.FC = () => {
                 }
               }}
               className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-                dateFilter === key ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
+                dateFilter === key ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white'
               }`}
             >
               {key === 'custom' && customStart && customEnd && dateFilter === 'custom'
@@ -423,7 +445,7 @@ export const Machines: React.FC = () => {
           <button
             onClick={() => setStatusFilter('all')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              statusFilter === 'all' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
+              statusFilter === 'all' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white'
             }`}
           >
             全部 {sortedMachines.length}
@@ -431,7 +453,7 @@ export const Machines: React.FC = () => {
           <button
             onClick={() => setStatusFilter('online')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              statusFilter === 'online' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
+              statusFilter === 'online' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white'
             }`}
           >
             上線 <span className="text-green-600 dark:text-neon-green ml-0.5">{onlineCount}</span>
@@ -439,10 +461,10 @@ export const Machines: React.FC = () => {
           <button
             onClick={() => setStatusFilter('offline')}
             className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-              statusFilter === 'offline' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
+              statusFilter === 'offline' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white'
             }`}
           >
-            斷線 <span className="text-slate-400 ml-0.5">{offlineCount}</span>
+            斷線 <span className="text-slate-400 dark:text-white ml-0.5">{offlineCount}</span>
           </button>
         </div>
 
@@ -452,7 +474,7 @@ export const Machines: React.FC = () => {
             <button
               onClick={() => setTypeFilter('all')}
               className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-                typeFilter === 'all' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
+                typeFilter === 'all' ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white'
               }`}
             >
               全類型
@@ -465,7 +487,7 @@ export const Machines: React.FC = () => {
                   key={type}
                   onClick={() => setTypeFilter(type)}
                   className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-                    typeFilter === type ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300'
+                    typeFilter === type ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white'
                   }`}
                 >
                   {info.icon} {info.name} {count}
@@ -509,7 +531,7 @@ export const Machines: React.FC = () => {
           return (
             <React.Fragment key={`${machine.key}-${idx}`}>
               {sectionHeader && (
-                <p className="text-xs font-bold text-slate-400 dark:text-zinc-500 px-1 pt-1">{sectionHeader}</p>
+                <p className="text-xs font-bold text-slate-400 dark:text-white px-1 pt-1">{sectionHeader}</p>
               )}
             <div
               onClick={() => setSelectedMachine(machine)}
@@ -522,15 +544,15 @@ export const Machines: React.FC = () => {
                       {machine.machine_name}
                     </span>
                   </div>
-                  <span className="text-xs text-slate-500 mt-0.5">{machine.store_name}</span>
+                  <span className="text-xs text-slate-500 dark:text-white mt-0.5">{machine.store_name}</span>
 
                   <div className="flex items-center gap-1.5 mt-1">
                     {/* 機台類型 badge */}
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <span className="text-xs text-slate-500 dark:text-white font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
                       {typeInfo.icon} {typeInfo.name}
                     </span>
                     {machine.product_name && (
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 max-w-[140px] truncate">
+                      <span className="text-xs text-slate-500 dark:text-white font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 max-w-[140px] truncate">
                         🎁 {machine.product_name}
                       </span>
                     )}
@@ -549,14 +571,14 @@ export const Machines: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 dark:text-zinc-500 font-medium">
+                  <span className="text-xs text-slate-500 dark:text-white font-medium">
                     {machine.last_reading_time ? `更新 ${formatTime(machine.last_reading_time)}` : ''}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setPinnedIds(togglePinnedStorage(machine.cpu_id)); }}
                     className="transition-colors"
                   >
-                    <span className={`material-symbols-outlined text-xl leading-none ${isPinned ? 'text-primary' : 'text-slate-300 dark:text-zinc-600'}`}>
+                    <span className={`material-symbols-outlined text-xl leading-none ${isPinned ? 'text-primary' : 'text-slate-300 dark:text-white'}`}>
                       {isPinned ? 'star' : 'star_border'}
                     </span>
                   </button>
@@ -565,25 +587,25 @@ export const Machines: React.FC = () => {
 
               <div className="grid grid-cols-4 gap-y-4 gap-x-2">
                 <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">總遊玩</span>
+                  <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">總遊玩</span>
                   <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
                     {machine.total_play_count.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">投幣</span>
+                  <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">投幣</span>
                   <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
                     ${machine.coin_amount.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">電支</span>
+                  <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">電支</span>
                   <span className="text-base font-bold tracking-tight text-primary">
                     ${machine.card_amount.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">營業額</span>
+                  <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">營業額</span>
                   <span className="text-base font-bold tracking-tight text-green-600 dark:text-neon-green">
                     ${machine.revenue.toLocaleString()}
                   </span>
@@ -591,13 +613,13 @@ export const Machines: React.FC = () => {
                 {hasGiftConcept && (
                   <>
                     <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 font-medium mb-0.5">出獎數</span>
+                      <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">出獎數</span>
                       <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
                         {machine.gift_out_count}
                       </span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 font-medium mb-0.5">均出</span>
+                      <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">均出</span>
                       <span className={`text-base font-bold tracking-tight ${
                         avgPayout > 800 ? 'text-red-600 dark:text-bright-red font-black' : 'text-slate-900 dark:text-white'
                       }`}>
@@ -607,9 +629,9 @@ export const Machines: React.FC = () => {
                   </>
                 )}
                 <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">成本</span>
+                  <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">成本</span>
                   {machine.cost == null ? (
-                    <span className="text-sm font-medium text-slate-400 dark:text-zinc-600 leading-6">未設定</span>
+                    <span className="text-sm font-medium text-slate-400 dark:text-white leading-6">未設定</span>
                   ) : (
                     <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
                       ${machine.cost.toLocaleString()}
@@ -617,9 +639,9 @@ export const Machines: React.FC = () => {
                   )}
                 </div>
                 <div className={`flex flex-col items-end ${hasGiftConcept ? '' : 'col-start-4'}`}>
-                  <span className="text-xs text-slate-500 font-medium mb-0.5">毛利</span>
+                  <span className="text-xs text-slate-500 dark:text-white font-medium mb-0.5">毛利</span>
                   {machine.gross_profit == null ? (
-                    <span className="text-sm font-medium text-slate-400 dark:text-zinc-600 leading-6">未設定</span>
+                    <span className="text-sm font-medium text-slate-400 dark:text-white leading-6">未設定</span>
                   ) : (
                     <span className={`text-base font-bold tracking-tight ${
                       machine.gross_profit < 0 ? 'text-red-600 dark:text-bright-red' : 'text-green-600 dark:text-neon-green'
@@ -688,42 +710,42 @@ export const Machines: React.FC = () => {
           <div className="relative w-full max-w-md bg-white dark:bg-surface-dark rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-white/10 p-6 pb-10 animate-slide-up max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedMachine.machine_name}</h2>
-              <button onClick={() => setSelectedMachine(null)} className="text-slate-400">
+              <button onClick={() => setSelectedMachine(null)} className="text-slate-400 dark:text-white">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">門市</span>
+                <span className="text-slate-400 dark:text-white">門市</span>
                 <span className="text-slate-900 dark:text-white">{selectedMachine.store_name}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">機台 ID</span>
+                <span className="text-slate-400 dark:text-white">機台 ID</span>
                 <span className="text-slate-900 dark:text-white font-mono text-xs">{selectedMachine.key}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">總遊玩</span>
+                <span className="text-slate-400 dark:text-white">總遊玩</span>
                 <span className="text-slate-900 dark:text-white">{selectedMachine.total_play_count}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">營業額</span>
+                <span className="text-slate-400 dark:text-white">營業額</span>
                 <span className="text-green-600 dark:text-neon-green">${selectedMachine.revenue.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">商品</span>
+                <span className="text-slate-400 dark:text-white">商品</span>
                 <span className="text-slate-900 dark:text-white">{selectedMachine.product_name ?? '未綁定'}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">成本</span>
+                <span className="text-slate-400 dark:text-white">成本</span>
                 <span className="text-slate-900 dark:text-white">
                   {selectedMachine.cost == null ? '未設定' : `$${selectedMachine.cost.toLocaleString()}`}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">毛利</span>
+                <span className="text-slate-400 dark:text-white">毛利</span>
                 {selectedMachine.gross_profit == null ? (
-                  <span className="text-slate-400">未設定</span>
+                  <span className="text-slate-400 dark:text-white">未設定</span>
                 ) : (
                   <span className={selectedMachine.gross_profit < 0 ? 'text-red-600 dark:text-bright-red' : 'text-green-600 dark:text-neon-green'}>
                     ${selectedMachine.gross_profit.toLocaleString()}
@@ -747,7 +769,7 @@ export const Machines: React.FC = () => {
                   已補貨
                 </button>
                 {restockedTime && (
-                  <p className="text-[10px] text-center text-slate-400 dark:text-zinc-500">{formatActionTime(restockedTime)}</p>
+                  <p className="text-[10px] text-center text-slate-400 dark:text-white">{formatActionTime(restockedTime)}</p>
                 )}
               </div>
               <div className="flex flex-col gap-1">
@@ -763,14 +785,14 @@ export const Machines: React.FC = () => {
                   已檢查
                 </button>
                 {checkedTime && (
-                  <p className="text-[10px] text-center text-slate-400 dark:text-zinc-500">{formatActionTime(checkedTime)}</p>
+                  <p className="text-[10px] text-center text-slate-400 dark:text-white">{formatActionTime(checkedTime)}</p>
                 )}
               </div>
             </div>
 
             {/* 備註 */}
             <div className="mb-4">
-              <label className="text-xs font-bold text-slate-400 dark:text-zinc-500 mb-1.5 block">備註</label>
+              <label className="text-xs font-bold text-slate-400 dark:text-white mb-1.5 block">備註</label>
               <textarea
                 value={modalNote}
                 onChange={(e) => setModalNote(e.target.value)}
@@ -783,26 +805,14 @@ export const Machines: React.FC = () => {
                 }}
                 placeholder="輸入機台備註..."
                 rows={3}
-                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-300 dark:placeholder-zinc-600 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-300 dark:placeholder-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
               />
             </div>
 
             {/* 控制按鈕 */}
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => {
-                  if (window.confirm(`確定要重啟「${selectedMachine.machine_name}」嗎？`)) {
-                    setControlLoading(true);
-                    restartMachine(selectedMachine.machine_id!)
-                      .then(() => {
-                        alert('✅ 指令已發送，請稍後查看機台狀態');
-                      })
-                      .catch((err) => {
-                        alert('❌ 發送失敗：' + (err.message || err.detail || '未知錯誤'));
-                      })
-                      .finally(() => setControlLoading(false));
-                  }
-                }}
+                onClick={() => setPendingControl('restart')}
                 disabled={controlLoading || !selectedMachine.machine_id}
                 className="flex items-center justify-center gap-2 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-xl font-medium transition-colors disabled:opacity-50"
               >
@@ -810,19 +820,7 @@ export const Machines: React.FC = () => {
                 重啟
               </button>
               <button
-                onClick={() => {
-                  if (window.confirm(`確定要對「${selectedMachine.machine_name}」發送遠端投幣指令嗎？`)) {
-                    setControlLoading(true);
-                    startMachine(selectedMachine.machine_id!)
-                      .then(() => {
-                        alert('✅ 指令已發送，請稍後查看機台狀態');
-                      })
-                      .catch((err) => {
-                        alert('❌ 發送失敗：' + (err.message || err.detail || '未知錯誤'));
-                      })
-                      .finally(() => setControlLoading(false));
-                  }
-                }}
+                onClick={() => setPendingControl('start')}
                 disabled={controlLoading || !selectedMachine.machine_id}
                 className="flex items-center justify-center gap-2 py-3 bg-primary/20 hover:bg-primary/30 text-primary rounded-xl font-medium transition-colors disabled:opacity-50"
               >
@@ -832,6 +830,24 @@ export const Machines: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {pendingControl && selectedMachine && (
+        <ConfirmDialog
+          message={pendingControl === 'restart'
+            ? `確定要重啟「${selectedMachine.machine_name}」嗎？`
+            : `確定要對機台號碼：「${selectedMachine.machine_name}」進行遠端投幣嗎？`}
+          cancelText="取消"
+          onConfirm={() => runControl(pendingControl)}
+          onCancel={() => setPendingControl(null)}
+        />
+      )}
+
+      {controlResult && (
+        <ConfirmDialog
+          message={controlResult}
+          onConfirm={() => setControlResult(null)}
+        />
       )}
     </div>
   );

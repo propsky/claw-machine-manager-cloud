@@ -13,7 +13,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const isActive = location.pathname === path;
     const baseClass = "flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer";
     const activeClass = "text-primary opacity-100";
-    const inactiveClass = "text-slate-400 dark:text-zinc-600 opacity-60 hover:opacity-100";
+    const inactiveClass = "text-slate-400 opacity-60 hover:opacity-100 dark:text-white dark:opacity-100";
     
     return `${baseClass} ${isActive ? activeClass : inactiveClass}`;
   };

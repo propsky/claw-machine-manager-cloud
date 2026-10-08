@@ -130,7 +130,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
         {/* Header */}
         <div className="px-6 pt-2 pb-4 z-10">
           <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">確認提領申請</h1>
-          <p className="text-slate-500 dark:text-white/50 text-sm text-center mt-1">可提領餘額：${maxAmount.toLocaleString()}</p>
+          <p className="text-slate-500 dark:text-white text-sm text-center mt-1">可提領餘額：${maxAmount.toLocaleString()}</p>
         </div>
 
         {/* Content Area */}
@@ -142,7 +142,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
                 <span className="material-symbols-outlined text-green-500 text-4xl">check_circle</span>
               </div>
               <p className="text-slate-900 dark:text-white text-lg font-bold">提領申請已提交</p>
-              <p className="text-slate-500 dark:text-white/50 text-sm mt-1">預計 3 個工作天內完成撥款</p>
+              <p className="text-slate-500 dark:text-white text-sm mt-1">預計 3 個工作天內完成撥款</p>
             </div>
           ) : (
             <>
@@ -155,7 +155,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
 
               {/* 輸入提領金額 */}
               <div className="flex flex-col gap-2">
-                <p className="text-slate-600 dark:text-white/70 text-sm font-medium">輸入提領金額</p>
+                <p className="text-slate-600 dark:text-white text-sm font-medium">輸入提領金額</p>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-bold text-xl">$</span>
                   <input
@@ -167,7 +167,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
                     className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-4 pl-10 pr-4 text-slate-900 dark:text-white text-2xl font-bold focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                     placeholder="0"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30 text-sm">
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white text-sm">
                     最高 ${maxAmount.toLocaleString()}
                   </span>
                 </div>
@@ -175,7 +175,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
 
               {/* 選擇銀行 */}
               <div className="flex flex-col gap-2">
-                <p className="text-slate-600 dark:text-white/70 text-sm font-medium">選擇銀行</p>
+                <p className="text-slate-600 dark:text-white text-sm font-medium">選擇銀行</p>
                 <select
                   value={selectedAccount?.id || ''}
                   onChange={e => {
@@ -204,7 +204,7 @@ export const WithdrawalSheet: React.FC<WithdrawalSheetProps> = ({ isOpen, onClos
 
               {/* 手續費與實際入帳 */}
               <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-4 space-y-2">
-                <div className="flex justify-between text-slate-600 dark:text-white/70">
+                <div className="flex justify-between text-slate-600 dark:text-white">
                   <span>手續費</span>
                   <span className={fee === 0 ? 'text-green-600 dark:text-green-400' : ''}>${fee}</span>
                 </div>

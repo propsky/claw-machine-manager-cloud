@@ -69,7 +69,7 @@ export function StoreSelector({ selectedStoreId, onStoreChange }: StoreSelectorP
         <span className="text-slate-900 dark:text-white font-medium truncate max-w-[150px]">
           {displayName}
         </span>
-        <span className={`text-slate-500 dark:text-white/50 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+        <span className={`text-slate-500 dark:text-white transition-transform ${isOpen ? 'rotate-180' : ''}`}>
           ▼
         </span>
         {/* 刷新按鈕 */}
