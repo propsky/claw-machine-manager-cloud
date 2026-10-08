@@ -115,6 +115,8 @@ function togglePinnedStorage(cpuId: string): Set<string> {
 }
 const noteKey = (cpuId: string) => `machine_note_${cpuId}`;
 const actionKey = (cpuId: string, action: 'restocked' | 'checked') => `machine_${action}_${cpuId}`;
+// 已補貨／已檢查功能暫不開放，改為 true 即恢復顯示
+const SHOW_RESTOCK_CHECK = false;
 
 export const Machines: React.FC = () => {
   const [todayReadings, setTodayReadings] = useState<ReadingsResponse | null>(null);
@@ -145,6 +147,14 @@ export const Machines: React.FC = () => {
   const [pendingControl, setPendingControl] = useState<'restart' | 'start' | null>(null);
   const [controlResult, setControlResult] = useState<string | null>(null);
 
+  // 機台控制僅在「即時抄表」且機台上線時開放；回傳 null 表示可操作
+  const getControlBlockReason = (m: MachineViewItem): string | null => {
+    if (dateFilter !== 'realtime') return '機台控制僅能在「即時抄表」列表使用，請切換至即時抄表，且機台上線時才可操作';
+    if (getMachineStatus(m.last_reading_time) !== MachineStatus.ONLINE) return '機台目前斷線，需上線時才可使用機台控制';
+    if (!m.machine_id) return '查無機台 ID，暫時無法使用機台控制';
+    return null;
+  };
+
   const runControl = (action: 'restart' | 'start') => {
     if (!selectedMachine?.machine_id) return;
     setPendingControl(null);
@@ -155,7 +165,7 @@ export const Machines: React.FC = () => {
     request
       .then(() => {
         setControlResult(action === 'restart'
-          ? '✅ 指令已發送，請稍後查看機台狀態'
+          ? '重啟機台指令已送出，請確認機台是否已重新啟動'
           : '遠端投幣指令已送出，請確認機台是否成功投幣啟動');
       })
       .catch((err) => {
@@ -754,7 +764,8 @@ export const Machines: React.FC = () => {
               </div>
             </div>
 
-            {/* 補貨 / 檢查按鈕 */}
+            {/* 補貨 / 檢查按鈕（暫不開放） */}
+            {SHOW_RESTOCK_CHECK && (
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="flex flex-col gap-1">
                 <button
@@ -789,6 +800,7 @@ export const Machines: React.FC = () => {
                 )}
               </div>
             </div>
+            )}
 
             {/* 備註 */}
             <div className="mb-4">
@@ -809,25 +821,43 @@ export const Machines: React.FC = () => {
               />
             </div>
 
-            {/* 控制按鈕 */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setPendingControl('restart')}
-                disabled={controlLoading || !selectedMachine.machine_id}
-                className="flex items-center justify-center gap-2 py-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-xl font-medium transition-colors disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined">restart_alt</span>
-                重啟
-              </button>
-              <button
-                onClick={() => setPendingControl('start')}
-                disabled={controlLoading || !selectedMachine.machine_id}
-                className="flex items-center justify-center gap-2 py-3 bg-primary/20 hover:bg-primary/30 text-primary rounded-xl font-medium transition-colors disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined">savings</span>
-                遠端投幣
-              </button>
-            </div>
+            {/* 控制按鈕：僅即時抄表 + 機台上線時可用；鎖定時點擊顯示原因 */}
+            {(() => {
+              const blockReason = getControlBlockReason(selectedMachine);
+              const lockedClass = 'bg-slate-100 dark:bg-white/5 border border-dashed border-slate-300 dark:border-white/25 text-slate-500 dark:text-white';
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => blockReason ? setControlResult(blockReason) : setPendingControl('restart')}
+                      disabled={controlLoading}
+                      className={`flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 ${
+                        blockReason ? lockedClass : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-400'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined">{blockReason ? 'lock' : 'restart_alt'}</span>
+                      重啟機台
+                    </button>
+                    <button
+                      onClick={() => blockReason ? setControlResult(blockReason) : setPendingControl('start')}
+                      disabled={controlLoading}
+                      className={`flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 ${
+                        blockReason ? lockedClass : 'bg-primary/20 hover:bg-primary/30 text-primary'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined">{blockReason ? 'lock' : 'savings'}</span>
+                      遠端投幣
+                    </button>
+                  </div>
+                  {blockReason && (
+                    <p className="flex items-start gap-1.5 mt-3 text-xs font-medium text-amber-600 dark:text-amber-300">
+                      <span className="material-symbols-outlined text-sm leading-4">info</span>
+                      {blockReason}
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -835,7 +865,7 @@ export const Machines: React.FC = () => {
       {pendingControl && selectedMachine && (
         <ConfirmDialog
           message={pendingControl === 'restart'
-            ? `確定要重啟「${selectedMachine.machine_name}」嗎？`
+            ? `確定要對機台號碼：「${selectedMachine.machine_name}」進行重開機嗎？`
             : `確定要對機台號碼：「${selectedMachine.machine_name}」進行遠端投幣嗎？`}
           cancelText="取消"
           onConfirm={() => runControl(pendingControl)}
