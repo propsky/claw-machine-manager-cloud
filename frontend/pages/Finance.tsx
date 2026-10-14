@@ -4,11 +4,12 @@ import { DateRangeSheet } from '../components/DateRangeSheet';
 import { useNavigate } from 'react-router-dom';
 import { fetchBalance, fetchPayments, fetchActivity, fetchWithdrawalRequests, WithdrawalRequest } from '../services/api';
 import type { BalanceResponse, PaymentsResponse, ActivityResponse } from '../types';
+import { taipeiNow } from '../utils/time';
 
 type FilterType = 'current' | 'prev1' | 'prev2' | 'custom';
 
 function getMonthRange(offset: number) {
-  const now = new Date();
+  const now = taipeiNow();
   const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
   const year = start.getFullYear();
@@ -58,9 +59,10 @@ export const Finance: React.FC = () => {
       case 'prev2': return prevMonth2;
       case 'custom': {
         if (customRange) {
-          const s = new Date(customRange.start);
-          const e = new Date(customRange.end);
-          const fmt = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+          // YYYY-MM-DD 直接取字串，避免 new Date() 以 UTC 解析造成日期差一天
+          const fmt = (ymd: string) => `${ymd.slice(5, 7)}/${ymd.slice(8, 10)}`;
+          const s = customRange.start;
+          const e = customRange.end;
           return {
             title: '自訂區間 帳務結算',
             period: `${fmt(s)} - ${fmt(e)}`,

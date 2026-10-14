@@ -4,6 +4,7 @@ import { fetchMeterReadings, fetchBalance, fetchActivity, fetchPayments } from '
 import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
+import { taipeiNow, formatYmd, minutesSince } from '../utils/time';
 
 const PLAY_PRICE = 10;
 
@@ -11,19 +12,15 @@ type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'cus
 
 function getMachineStatus(lastReadingTime: string | null): MachineStatus {
   if (!lastReadingTime) return MachineStatus.OFFLINE;
-  const lastTime = new Date(lastReadingTime);
-  const now = new Date();
-  const diffMinutes = Math.floor((now.getTime() - lastTime.getTime()) / (1000 * 60));
+  const diffMinutes = minutesSince(lastReadingTime);
   // API 約 80 分鐘更新一次，設定 90 分鐘無回應視為離線
   return diffMinutes > 90 ? MachineStatus.OFFLINE : MachineStatus.ONLINE;
 }
 
-function formatDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+const formatDate = formatYmd;
 
 function getDateRange(filter: Exclude<DateFilter, 'custom'>): { start: string; end: string; isSingleDay: boolean } {
-  const now = new Date();
+  const now = taipeiNow();
   const today = formatDate(now);
 
   switch (filter) {
@@ -55,7 +52,7 @@ function getDateRange(filter: Exclude<DateFilter, 'custom'>): { start: string; e
 }
 
 function getRevenueDateRange(filter: RevenueFilter): { start: string; end: string } {
-  const now = new Date();
+  const now = taipeiNow();
   const today = formatDate(now);
 
   switch (filter) {

@@ -6,6 +6,7 @@ import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
+import { taipeiNow, taipeiToday, formatYmd, minutesSince, parseServerTime, TAIPEI_TZ } from '../utils/time';
 const MACHINES_CACHE_TTL = 5 * 60 * 1000;
 let todayCache: { data: ReadingsResponse; cachedAt: number } | null = null;
 
@@ -51,16 +52,14 @@ interface MachineViewItem {
   machineType: MachineType;
 }
 
-function formatDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+const formatDate = formatYmd;
 
 function getTodayString(): string {
-  return formatDate(new Date());
+  return taipeiToday();
 }
 
 function getDateRange(filter: Exclude<DateFilter, 'realtime' | 'custom'>): { start: string; end: string } {
-  const now = new Date();
+  const now = taipeiNow();
   const today = formatDate(now);
   switch (filter) {
     case 'today':
@@ -85,9 +84,7 @@ function getDateRange(filter: Exclude<DateFilter, 'realtime' | 'custom'>): { sta
   }
 }
 
-function getTimeDiffMinutes(t: string): number {
-  return Math.floor((Date.now() - new Date(t).getTime()) / 60000);
-}
+const getTimeDiffMinutes = minutesSince;
 
 function getMachineStatus(lastReadingTime: string | null): MachineStatus {
   if (!lastReadingTime) return MachineStatus.OFFLINE;
@@ -95,11 +92,11 @@ function getMachineStatus(lastReadingTime: string | null): MachineStatus {
 }
 
 function formatTime(isoString: string): string {
-  return new Date(isoString).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+  return parseServerTime(isoString).toLocaleTimeString('zh-TW', { timeZone: TAIPEI_TZ, hour: '2-digit', minute: '2-digit' });
 }
 
 function formatActionTime(iso: string): string {
-  return new Date(iso).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('zh-TW', { timeZone: TAIPEI_TZ, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 // localStorage helpers
