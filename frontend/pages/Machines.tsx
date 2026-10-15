@@ -901,7 +901,7 @@ export const Machines: React.FC = () => {
           message={pendingControl === 'restart'
             ? `確定要對機台號碼：「${selectedMachine.machine_name}」進行重開機嗎？`
             : `確定要對機台號碼：「${selectedMachine.machine_name}」進行遠端投幣嗎？`}
-          note="僅限飛絡力數位台"
+          note={pendingControl === 'restart' ? '僅限飛絡力數位台' : undefined}
           cancelText="取消"
           onConfirm={() => runControl(pendingControl)}
           onCancel={() => setPendingControl(null)}
