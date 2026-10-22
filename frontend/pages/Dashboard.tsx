@@ -5,6 +5,7 @@ import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
 import { taipeiNow, formatYmd, minutesSince } from '../utils/time';
+import { RevenueRange, type RevenueFilter } from '../utils/revenueRange';
 
 const PLAY_PRICE = 10;
 
@@ -51,34 +52,6 @@ function getDateRange(filter: Exclude<DateFilter, 'custom'>): { start: string; e
   }
 }
 
-function getRevenueDateRange(filter: RevenueFilter): { start: string; end: string } {
-  const now = taipeiNow();
-  const today = formatDate(now);
-
-  switch (filter) {
-    case 'day1': {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      return { start: formatDate(yesterday), end: today };
-    }
-    case 'day3': {
-      const threeDaysAgo = new Date(now);
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-      return { start: formatDate(threeDaysAgo), end: today };
-    }
-    case 'day7': {
-      const sevenDaysAgo = new Date(now);
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      return { start: formatDate(sevenDaysAgo), end: today };
-    }
-    case 'day30': {
-      const thirtyDaysAgo = new Date(now);
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return { start: formatDate(thirtyDaysAgo), end: today };
-    }
-  }
-}
-
 const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'today', label: '今日' },
   { key: 'yesterday', label: '昨日' },
@@ -88,15 +61,6 @@ const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'custom', label: '自訂' },
 ];
 
-// 營收報表篩選
-type RevenueFilter = 'day1' | 'day3' | 'day7' | 'day30';
-const REVENUE_FILTER_LABELS: { key: RevenueFilter; label: string }[] = [
-  { key: 'day1', label: '24小時內' },
-  { key: 'day3', label: '3天內' },
-  { key: 'day7', label: '7天內' },
-  { key: 'day30', label: '30天內' },
-];
-const FILTER_DAYS: Record<RevenueFilter, number> = { day1: 1, day3: 3, day7: 7, day30: 30 };
 const REVENUE_CACHE_TTL = 30 * 60 * 1000; // 30 分鐘
 
 export const Dashboard: React.FC = () => {
@@ -106,19 +70,26 @@ export const Dashboard: React.FC = () => {
   const [customEnd, setCustomEnd] = useState('');
   // 選中的場地 ID（null = 全部場地）
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
-  // 用 ref 追蹤最新的 selectedFilter，避免 setInterval 閉包問題
+  // 用 ref 追蹤最新的篩選與場地，避免 setInterval 閉包，也丟掉過期的營收回應
   const selectedFilterRef = useRef<DateFilter>(selectedFilter);
-  // 營收報表 cache：key = `${filter}-${storeId ?? 'all'}`
-  const revenueCacheRef = useRef<Map<string, { data: PaymentsResponse; cachedAt: number }>>(new Map());
+  const selectedStoreIdRef = useRef<number | null>(selectedStoreId);
+  const customRangeRef = useRef({ start: customStart, end: customEnd });
+  const revenueRequestRef = useRef(0);
+  const revenueLoadingOwnerRef = useRef(0);
+  // 營收報表 cache：key = `${filter}-${storeId ?? 'all'}`；days 是該次查詢的含頭含尾日曆天數
+  const revenueCacheRef = useRef<Map<string, { data: PaymentsResponse; cachedAt: number; days: number }>>(new Map());
   // 營收報表 Modal
   const [showRevenueReport, setShowRevenueReport] = useState(false);
   const [revenueFilter, setRevenueFilter] = useState<RevenueFilter>('day7');
+  const [revenueReportDays, setRevenueReportDays] = useState(() => RevenueRange.daysFor('day7'));
   const [reportTypeFilter, setReportTypeFilter] = useState<MachineType | 'all'>('all');
 
   // 同步 ref 與 state
   useEffect(() => {
     selectedFilterRef.current = selectedFilter;
-  }, [selectedFilter]);
+    selectedStoreIdRef.current = selectedStoreId;
+    customRangeRef.current = { start: customStart, end: customEnd };
+  }, [selectedFilter, selectedStoreId, customStart, customEnd]);
 
   // 即時資料（今日 readings，用於場地健康）
   const [realtimeReadings, setRealtimeReadings] = useState<MeterReadingsResponse | null>(null);
@@ -137,13 +108,14 @@ export const Dashboard: React.FC = () => {
     const cacheKey = `${filter}-${selectedStoreId ?? 'all'}`;
     const cached = revenueCacheRef.current.get(cacheKey);
 
-    // cache 命中且未過期，直接使用
+    // cache 命中且未過期，直接使用（天數跟著該次查詢，不在渲染時重算）
     if (cached && Date.now() - cached.cachedAt < REVENUE_CACHE_TTL) {
       setRevenuePayments(cached.data);
+      setRevenueReportDays(cached.days);
       return;
     }
 
-    const range = getRevenueDateRange(filter);
+    const range = RevenueRange.getRange(filter, taipeiNow());
     setRevenuePayments(null);
     setRevenueReadings(null);
     setRevenueLoading(true);
@@ -179,8 +151,9 @@ export const Dashboard: React.FC = () => {
       }
 
       const result = { ...firstPage, items: allItems };
-      revenueCacheRef.current.set(cacheKey, { data: result, cachedAt: Date.now() });
+      revenueCacheRef.current.set(cacheKey, { data: result, cachedAt: Date.now(), days: range.days });
       setRevenuePayments(result);
+      setRevenueReportDays(range.days);
     } catch (error) {
       console.error('載入營收報表失敗:', error);
     } finally {
@@ -225,29 +198,36 @@ export const Dashboard: React.FC = () => {
     }
   }, [selectedStoreId]);
 
-  // 載入即時資料（一次性 + 定時刷新）
-  useEffect(() => {
-    loadRealtimeData();
-    const interval = setInterval(loadRealtimeData, 30000);
-    return () => clearInterval(interval);
-  }, [loadRealtimeData, selectedStoreId]);
-
-  // 篩選變更或場地切換時載入對應營收資料
-  useEffect(() => {
-    if (selectedFilter === 'custom') {
-      if (customStart && customEnd) loadRevenueData('custom', { start: customStart, end: customEnd });
-    } else {
-      loadRevenueData(selectedFilter);
-    }
-  }, [selectedFilter, selectedStoreId, customStart, customEnd]);
-
-  async function loadRevenueData(filter: DateFilter, customRange?: { start: string; end: string }) {
+  // 首頁營收。silent 用於 30 秒刷新，不把數字閃成「--」。
+  const loadRevenueData = useCallback(async (
+    filter: DateFilter,
+    customRange?: { start: string; end: string },
+    options?: { silent?: boolean },
+  ) => {
     if (filter === 'custom' && !customRange) return;
+    const silent = options?.silent === true;
+    const requestedStoreId = selectedStoreId;
+    const requestId = ++revenueRequestRef.current;
     const range = filter === 'custom' ? { start: customRange!.start, end: customRange!.end, isSingleDay: false } : getDateRange(filter);
-    setRevenueLoading(true);
+    // 靜默刷新不打開 loading，避免「今日」數字每 30 秒閃成「--」，也不干擾營收報表的載入狀態
+    if (!silent) {
+      revenueLoadingOwnerRef.current = requestId;
+      setRevenueLoading(true);
+    }
+
+    const stillCurrent = () => {
+      if (requestId !== revenueRequestRef.current) return false;
+      if (selectedFilterRef.current !== filter || selectedStoreIdRef.current !== requestedStoreId) return false;
+      if (filter === 'custom' && customRange) {
+        const current = customRangeRef.current;
+        if (current.start !== customRange.start || current.end !== customRange.end) return false;
+      }
+      return true;
+    };
 
     try {
-      const payments = await fetchPayments(range.start, range.end, selectedStoreId || undefined);
+      const payments = await fetchPayments(range.start, range.end, requestedStoreId || undefined);
+      if (!stillCurrent()) return;
       const s = payments.summary;
       setRevenueData({
         coin: s ? s.total_coin_amount : 0,
@@ -256,9 +236,30 @@ export const Dashboard: React.FC = () => {
     } catch (error) {
       console.error('載入營收失敗:', error);
     } finally {
-      setRevenueLoading(false);
+      if (!silent && revenueLoadingOwnerRef.current === requestId) setRevenueLoading(false);
     }
-  }
+  }, [selectedStoreId]);
+
+  // 載入即時資料（一次性 + 定時刷新）。首頁「今日」營收跟著同一輪刷新，不必手動重整。
+  useEffect(() => {
+    loadRealtimeData();
+    const interval = setInterval(() => {
+      loadRealtimeData();
+      if (selectedFilterRef.current === 'today') {
+        void loadRevenueData('today', undefined, { silent: true });
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loadRealtimeData, loadRevenueData, selectedStoreId]);
+
+  // 篩選變更或場地切換時載入對應營收資料
+  useEffect(() => {
+    if (selectedFilter === 'custom') {
+      if (customStart && customEnd) loadRevenueData('custom', { start: customStart, end: customEnd });
+    } else {
+      loadRevenueData(selectedFilter);
+    }
+  }, [selectedFilter, selectedStoreId, customStart, customEnd, loadRevenueData]);
 
   const machines = realtimeReadings?.items || [];
   // meter-readings 的 total_machines 來自 clawmachines is_active=true，不會浮動
@@ -292,7 +293,7 @@ export const Dashboard: React.FC = () => {
     const cardRevenue = s?.total_card_amount || 0;
     const totalPrizeCount = s?.total_prize_count || 0;
     const avgPayout = totalPrizeCount > 0 ? Math.round(totalRevenue / totalPrizeCount) : 0;
-    const avgDailyRevenue = Math.round(totalRevenue / FILTER_DAYS[revenueFilter]);
+    const avgDailyRevenue = RevenueRange.avgDaily(totalRevenue, revenueReportDays);
 
     // 從 payments items 按機台聚合，正確涵蓋整個日期區間
     const machineMap = new Map<string, { name: string; store_name: string; plays: number; revenue: number; gifts: number; machineType: MachineType }>();
@@ -364,7 +365,7 @@ export const Dashboard: React.FC = () => {
       availableReportTypes,
       hasMachineData: machineStats.length > 0,
     };
-  }, [revenuePayments, revenueFilter]);
+  }, [revenuePayments, revenueReportDays]);
 
   const filterTitle = useMemo(() => {
     if (selectedFilter === 'custom' && customStart && customEnd) {
@@ -586,7 +587,7 @@ export const Dashboard: React.FC = () => {
               <h1 className="text-slate-900 dark:text-white text-xl font-bold text-center">📊 營收報告</h1>
               {/* 時間篩選 */}
               <div className="flex gap-2 mt-3 justify-center">
-                {REVENUE_FILTER_LABELS.map((f) => (
+                {RevenueRange.options.map((f) => (
                   <button
                     key={f.key}
                     onClick={() => setRevenueFilter(f.key)}
