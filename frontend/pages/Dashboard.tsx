@@ -4,13 +4,14 @@ import { fetchMeterReadings, fetchBalance, fetchActivity, fetchPayments } from '
 import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
-import { taipeiNow, formatYmd, minutesSince } from '../utils/time';
+import { taipeiNow, minutesSince } from '../utils/time';
 import { RevenueRange, type RevenueFilter } from '../utils/revenueRange';
 import { TodayRevenueCard } from '../utils/todayRevenueCard';
+import { HomeDateFilter, type HomeDateFilterKey } from '../utils/homeDateFilter';
 
 const PLAY_PRICE = 10;
 
-type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'custom';
+type DateFilter = HomeDateFilterKey;
 
 function getMachineStatus(lastReadingTime: string | null): MachineStatus {
   if (!lastReadingTime) return MachineStatus.OFFLINE;
@@ -19,48 +20,11 @@ function getMachineStatus(lastReadingTime: string | null): MachineStatus {
   return diffMinutes > 90 ? MachineStatus.OFFLINE : MachineStatus.ONLINE;
 }
 
-const formatDate = formatYmd;
-
 function getDateRange(filter: Exclude<DateFilter, 'custom'>): { start: string; end: string; isSingleDay: boolean } {
-  const now = taipeiNow();
-  const today = formatDate(now);
-
-  switch (filter) {
-    case 'today':
-      return { start: today, end: today, isSingleDay: true };
-    case 'yesterday': {
-      const y = new Date(now);
-      y.setDate(y.getDate() - 1);
-      const ys = formatDate(y);
-      return { start: ys, end: ys, isSingleDay: true };
-    }
-    case 'seven_days': {
-      const d = new Date(now);
-      d.setDate(now.getDate() - 6);
-      return { start: formatDate(d), end: today, isSingleDay: false };
-    }
-    case 'week': {
-      const dayOfWeek = now.getDay(); // 0=Sun
-      const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - mondayOffset);
-      return { start: formatDate(monday), end: today, isSingleDay: false };
-    }
-    case 'month': {
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { start: formatDate(firstDay), end: today, isSingleDay: false };
-    }
-  }
+  return HomeDateFilter.range(filter);
 }
 
-const FILTER_LABELS: { key: DateFilter; label: string }[] = [
-  { key: 'today', label: '今日' },
-  { key: 'yesterday', label: '昨日' },
-  { key: 'seven_days', label: '7天內' },
-  { key: 'week', label: '本週' },
-  { key: 'month', label: '本月' },
-  { key: 'custom', label: '自訂' },
-];
+const FILTER_LABELS: { key: DateFilter; label: string }[] = [...HomeDateFilter.labels];
 
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
@@ -460,29 +424,36 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Date Filter */}
-      <div className="flex gap-2 px-4 pt-4 pb-1 overflow-x-auto hide-scrollbar">
-        {FILTER_LABELS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => {
-              if (f.key === 'custom') {
-                setShowDateSheet(true);
-              } else {
-                setSelectedFilter(f.key);
-              }
-            }}
-            className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
-              selectedFilter === f.key
-                ? 'bg-primary text-background-dark'
-                : 'bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-white hover:bg-slate-200 dark:hover:bg-white/15'
-            }`}
-          >
-            {f.key === 'custom' && customStart && customEnd && selectedFilter === 'custom'
-              ? `${customStart.slice(5)} ～ ${customEnd.slice(5)}`
-              : f.label}
-          </button>
-        ))}
+      {/* Date Filter：兩列四顆，不橫向捲動 */}
+      <div data-testid="home-date-filters" className="grid grid-cols-4 gap-2 px-4 pt-4 pb-1">
+        {FILTER_LABELS.map((f) => {
+          const showingCustomRange = f.key === 'custom' && customStart && customEnd && selectedFilter === 'custom';
+          const label = showingCustomRange
+            ? `${customStart.slice(5)} ～ ${customEnd.slice(5)}`
+            : f.label;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => {
+                if (f.key === 'custom') {
+                  setShowDateSheet(true);
+                } else {
+                  setSelectedFilter(f.key);
+                }
+              }}
+              className={`min-w-0 w-full px-0.5 py-2 rounded-full font-bold leading-none text-center whitespace-nowrap transition-colors ${
+                showingCustomRange ? 'text-[10px] tracking-tight' : 'text-xs'
+              } ${
+                selectedFilter === f.key
+                  ? 'bg-primary text-background-dark'
+                  : 'bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-white hover:bg-slate-200 dark:hover:bg-white/15'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex flex-col items-center pt-4 pb-4">
