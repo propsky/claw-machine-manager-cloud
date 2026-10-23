@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CustomDateRange } from '../utils/customDateRange';
 
 interface DateRangeSheetProps {
   isOpen: boolean;
@@ -27,10 +28,12 @@ export const DateRangeSheet: React.FC<DateRangeSheetProps> = ({
 
   if (!isOpen) return null;
 
+  const error = CustomDateRange.validate(start, end);
+  const canConfirm = CustomDateRange.canConfirm(start, end);
+
   const handleConfirm = () => {
-    if (start && end) {
-      onConfirm(start, end);
-    }
+    if (!canConfirm) return;
+    onConfirm(start, end);
   };
 
   return (
@@ -58,31 +61,52 @@ export const DateRangeSheet: React.FC<DateRangeSheetProps> = ({
         <div className="px-6 space-y-5 z-10">
           {/* Start Date */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-600 dark:text-white text-sm font-medium">開始日期</label>
+            <label htmlFor="date-range-start" className="text-slate-600 dark:text-white text-sm font-medium">開始日期</label>
             <input
+              id="date-range-start"
               type="date"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3.5 px-4 text-slate-900 dark:text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:[color-scheme:dark]"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'date-range-error' : undefined}
+              className={`w-full bg-slate-50 dark:bg-white/5 border rounded-xl py-3.5 px-4 text-slate-900 dark:text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:[color-scheme:dark] ${
+                error ? 'border-danger ring-1 ring-danger/40' : 'border-slate-200 dark:border-white/10'
+              }`}
             />
           </div>
 
           {/* End Date */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-600 dark:text-white text-sm font-medium">結束日期</label>
+            <label htmlFor="date-range-end" className="text-slate-600 dark:text-white text-sm font-medium">結束日期</label>
             <input
+              id="date-range-end"
               type="date"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl py-3.5 px-4 text-slate-900 dark:text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:[color-scheme:dark]"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'date-range-error' : undefined}
+              className={`w-full bg-slate-50 dark:bg-white/5 border rounded-xl py-3.5 px-4 text-slate-900 dark:text-white text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:[color-scheme:dark] ${
+                error ? 'border-danger ring-1 ring-danger/40' : 'border-slate-200 dark:border-white/10'
+              }`}
             />
           </div>
+
+          {error && (
+            <p
+              id="date-range-error"
+              role="alert"
+              data-testid="date-range-error"
+              className="text-sm font-medium text-danger text-center"
+            >
+              {error}
+            </p>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-3 pt-4">
             <button
               onClick={handleConfirm}
-              disabled={!start || !end}
+              disabled={!canConfirm}
               className="w-full bg-primary hover:bg-primary/90 text-background-dark font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               確認篩選
