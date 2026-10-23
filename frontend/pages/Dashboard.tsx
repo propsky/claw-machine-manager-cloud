@@ -6,6 +6,7 @@ import { DateRangeSheet } from '../components/DateRangeSheet';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
 import { taipeiNow, formatYmd, minutesSince } from '../utils/time';
 import { RevenueRange, type RevenueFilter } from '../utils/revenueRange';
+import { TodayRevenueCard } from '../utils/todayRevenueCard';
 
 const PLAY_PRICE = 10;
 
@@ -61,8 +62,6 @@ const FILTER_LABELS: { key: DateFilter; label: string }[] = [
   { key: 'custom', label: '自訂' },
 ];
 
-const REVENUE_CACHE_TTL = 30 * 60 * 1000; // 30 分鐘
-
 export const Dashboard: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<DateFilter>('today');
   const [showDateSheet, setShowDateSheet] = useState(false);
@@ -75,6 +74,7 @@ export const Dashboard: React.FC = () => {
   const selectedStoreIdRef = useRef<number | null>(selectedStoreId);
   const customRangeRef = useRef({ start: customStart, end: customEnd });
   const revenueRequestRef = useRef(0);
+  const reportRequestRef = useRef(0);
   const revenueLoadingOwnerRef = useRef(0);
   // 營收報表 cache：key = `${filter}-${storeId ?? 'all'}`；days 是該次查詢的含頭含尾日曆天數
   const revenueCacheRef = useRef<Map<string, { data: PaymentsResponse; cachedAt: number; days: number }>>(new Map());
@@ -98,69 +98,118 @@ export const Dashboard: React.FC = () => {
   const [balanceData, setBalanceData] = useState<BalanceResponse | null>(null);
   const [activityData, setActivityData] = useState<ActivityResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  // 只給頂部「今日／區間總營收」。報表卡片與 Modal 用 reportLoading，避免互相閃成「--」。
   const [revenueLoading, setRevenueLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
   const [loadProgress, setLoadProgress] = useState<number | null>(null);
   const [revenuePayments, setRevenuePayments] = useState<PaymentsResponse | null>(null);
+  // 首頁卡片固定是台北今天，與 Modal 的 revenuePayments 分開。
+  const [todayPayments, setTodayPayments] = useState<PaymentsResponse | null>(null);
+  const [todayStoreId, setTodayStoreId] = useState<number | null>(selectedStoreId);
   const [revenueReadings, setRevenueReadings] = useState<ReadingsResponse | null>(null);
 
-  // 載入營收報表資料（含 30 分鐘 cache）
+  // 換場地時先丟掉上一場的今日金額。cache 還有效就直接沿用，否則先顯示「--」。
+  if (todayStoreId !== selectedStoreId) {
+    setTodayStoreId(selectedStoreId);
+    const cached = revenueCacheRef.current.get(TodayRevenueCard.cacheKey(selectedStoreId));
+    setTodayPayments(cached && TodayRevenueCard.fresh(cached.cachedAt) ? cached.data : null);
+  }
+
+  // 分頁抓完整個區間。卡片與 Modal 共用，進度回呼只給 Modal。
+  const loadAllPaymentPages = useCallback(async (
+    start: string,
+    end: string,
+    storeId: number | null,
+    onProgress?: (percent: number) => void,
+  ): Promise<PaymentsResponse> => {
+    const firstPage = await fetchPayments(start, end, storeId || undefined, 1, 100);
+    const totalPages = firstPage.total_pages || 1;
+    onProgress?.(Math.round((1 / totalPages) * 100));
+
+    let allItems = [...firstPage.items];
+
+    // 若有多頁，每批最多 3 頁循序抓取，避免大量並行打垮後端
+    if (totalPages > 1) {
+      const BATCH_SIZE = 3;
+      let completed = 1;
+      for (let batchStart = 2; batchStart <= totalPages; batchStart += BATCH_SIZE) {
+        const batchPages = Array.from(
+          { length: Math.min(BATCH_SIZE, totalPages - batchStart + 1) },
+          (_, i) => batchStart + i
+        );
+        const batch = await Promise.all(
+          batchPages.map(page =>
+            fetchPayments(start, end, storeId || undefined, page, 100).then(p => {
+              completed++;
+              onProgress?.(Math.round((completed / totalPages) * 100));
+              return p;
+            })
+          )
+        );
+        batch.forEach(p => { allItems = allItems.concat(p.items); });
+      }
+    }
+
+    return { ...firstPage, items: allItems };
+  }, []);
+
+  // 30 分鐘 cache。day1 與首頁卡片同一把 key，Modal 其他區間維持各自的 key。
+  const fetchRevenue = useCallback(async (
+    storeId: number | null,
+    filter: RevenueFilter,
+    onProgress?: (percent: number) => void,
+  ): Promise<{ data: PaymentsResponse; days: number }> => {
+    const cacheKey = TodayRevenueCard.cacheKey(storeId, filter);
+    const cached = revenueCacheRef.current.get(cacheKey);
+    if (cached && TodayRevenueCard.fresh(cached.cachedAt)) {
+      return { data: cached.data, days: cached.days };
+    }
+
+    const now = taipeiNow();
+    const range = filter === 'day1'
+      ? TodayRevenueCard.range(now)
+      : RevenueRange.getRange(filter, now);
+    const data = await loadAllPaymentPages(range.start, range.end, storeId, onProgress);
+    revenueCacheRef.current.set(cacheKey, { data, cachedAt: Date.now(), days: range.days });
+    return { data, days: range.days };
+  }, [loadAllPaymentPages]);
+
+  // 載入營收報表 Modal（含 30 分鐘 cache）。不碰頂部營收的 revenueLoading。
   const loadRevenueReportData = useCallback(async (filter: RevenueFilter) => {
-    const cacheKey = `${filter}-${selectedStoreId ?? 'all'}`;
+    const storeId = selectedStoreId;
+    const requestId = ++reportRequestRef.current;
+    const cacheKey = TodayRevenueCard.cacheKey(storeId, filter);
     const cached = revenueCacheRef.current.get(cacheKey);
 
     // cache 命中且未過期，直接使用（天數跟著該次查詢，不在渲染時重算）
-    if (cached && Date.now() - cached.cachedAt < REVENUE_CACHE_TTL) {
+    if (cached && TodayRevenueCard.fresh(cached.cachedAt)) {
       setRevenuePayments(cached.data);
       setRevenueReportDays(cached.days);
+      setReportLoading(false);
+      setLoadProgress(null);
       return;
     }
 
-    const range = RevenueRange.getRange(filter, taipeiNow());
     setRevenuePayments(null);
     setRevenueReadings(null);
-    setRevenueLoading(true);
+    setReportLoading(true);
     setLoadProgress(0);
     try {
-      // 先取第一頁，確認總頁數（API 最大 page_size=100）
-      const firstPage = await fetchPayments(range.start, range.end, selectedStoreId || undefined, 1, 100);
-      const totalPages = firstPage.total_pages || 1;
-      setLoadProgress(Math.round((1 / totalPages) * 100));
-
-      let allItems = [...firstPage.items];
-
-      // 若有多頁，每批最多 3 頁循序抓取，避免大量並行打垮後端
-      if (totalPages > 1) {
-        const BATCH_SIZE = 3;
-        let completed = 1;
-        for (let batchStart = 2; batchStart <= totalPages; batchStart += BATCH_SIZE) {
-          const batchPages = Array.from(
-            { length: Math.min(BATCH_SIZE, totalPages - batchStart + 1) },
-            (_, i) => batchStart + i
-          );
-          const batch = await Promise.all(
-            batchPages.map(page =>
-              fetchPayments(range.start, range.end, selectedStoreId || undefined, page, 100).then(p => {
-                completed++;
-                setLoadProgress(Math.round((completed / totalPages) * 100));
-                return p;
-              })
-            )
-          );
-          batch.forEach(p => { allItems = allItems.concat(p.items); });
-        }
-      }
-
-      const result = { ...firstPage, items: allItems };
-      revenueCacheRef.current.set(cacheKey, { data: result, cachedAt: Date.now(), days: range.days });
-      setRevenuePayments(result);
-      setRevenueReportDays(range.days);
+      const { data, days } = await fetchRevenue(storeId, filter, (percent) => {
+        if (reportRequestRef.current === requestId) setLoadProgress(percent);
+      });
+      if (reportRequestRef.current !== requestId) return;
+      setRevenuePayments(data);
+      setRevenueReportDays(days);
     } catch (error) {
       console.error('載入營收報表失敗:', error);
     } finally {
-      setRevenueLoading(false);
-      setLoadProgress(null);
+      if (reportRequestRef.current === requestId) {
+        setReportLoading(false);
+        setLoadProgress(null);
+      }
     }
-  }, [selectedStoreId]);
+  }, [selectedStoreId, fetchRevenue]);
 
   // 當營收報表開啟或篩選變更時，載入資料
   useEffect(() => {
@@ -168,6 +217,28 @@ export const Dashboard: React.FC = () => {
       loadRevenueReportData(revenueFilter);
     }
   }, [showRevenueReport, revenueFilter, loadRevenueReportData, selectedStoreId]);
+
+  // 首頁卡片：進頁與切換場地就抓台北今天，不必先打開 Modal。
+  useEffect(() => {
+    let cancelled = false;
+    const storeId = selectedStoreId;
+    const cached = revenueCacheRef.current.get(TodayRevenueCard.cacheKey(storeId));
+    if (cached && TodayRevenueCard.fresh(cached.cachedAt)) {
+      setTodayPayments(cached.data);
+      return;
+    }
+
+    (async () => {
+      try {
+        const { data } = await fetchRevenue(storeId, 'day1');
+        if (!cancelled) setTodayPayments(data);
+      } catch (error) {
+        console.error('載入今日營收卡片失敗:', error);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [selectedStoreId, fetchRevenue]);
 
   // 載入即時資料（場地健康、餘額、帳務）— 不動營收數據
   const loadRealtimeData = useCallback(async () => {
@@ -446,15 +517,21 @@ export const Dashboard: React.FC = () => {
       <div className={`grid gap-4 p-4 ${localStorage.getItem('show_balance') === '1' ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <div 
           onClick={() => setShowRevenueReport(true)}
+          data-testid="revenue-report-card"
           className="flex flex-col gap-3 rounded-2xl bg-white dark:bg-zinc-900 p-5 border border-slate-200 dark:border-zinc-800 shadow-sm cursor-pointer active:scale-95 transition-transform"
         >
           <div className="flex size-10 items-center justify-center rounded-xl bg-slate-200 dark:bg-zinc-800">
             <span className="material-symbols-outlined text-primary">insights</span>
           </div>
           <div>
-            <p className="text-slate-500 dark:text-white text-base font-bold">營收報表</p>
+            <div className="flex items-center gap-2">
+              <p className="text-slate-500 dark:text-white text-base font-bold">營收報表</p>
+              <span className="text-[10px] font-bold leading-none px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-white">
+                {TodayRevenueCard.label}
+              </span>
+            </div>
             <p className="text-primary text-lg font-bold">
-              {revenueReport ? `$${revenueReport.totalRevenue.toLocaleString()}` : '--'}
+              {TodayRevenueCard.format(todayPayments)}
             </p>
           </div>
         </div>
@@ -632,7 +709,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* 載入中覆蓋層 */}
-            {revenueLoading && (
+            {reportLoading && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
                 {loadProgress !== null && loadProgress < 100 ? (
@@ -651,7 +728,7 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            <div className={`px-6 space-y-4 ${revenueLoading ? 'hidden' : ''}`}>
+            <div className={`px-6 space-y-4 ${reportLoading ? 'hidden' : ''}`}>
               {/* 總覽數據 */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 text-center">

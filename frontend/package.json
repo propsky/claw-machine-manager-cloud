@@ -16,9 +16,11 @@
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.14.0",
     "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^5.0.0",
+    "happy-dom": "^21.0.4",
     "typescript": "~5.8.2",
     "vite": "^7.3.1",
     "vite-plugin-pwa": "^1.2.0",
