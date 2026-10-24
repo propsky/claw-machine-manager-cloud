@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MachineStatus, ReadingsResponse, PaymentsResponse } from '../types';
 import { fetchReadings, fetchPayments, fetchStores, restartMachine, startMachine, type StoreOption } from '../services/api';
 import { getStoresWithCache } from '../services/storeCache';
@@ -6,23 +6,37 @@ import { StoreSelector } from '../components/StoreSelector';
 import { DateRangeSheet } from '../components/DateRangeSheet';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { getMachineTypeInfo, MACHINE_TYPE_INFO, MachineType } from '../config/machineTypeMap';
-import { taipeiNow, taipeiToday, formatYmd, minutesSince, parseServerTime, TAIPEI_TZ } from '../utils/time';
-const MACHINES_CACHE_TTL = 5 * 60 * 1000;
-let todayCache: { data: ReadingsResponse; cachedAt: number } | null = null;
+import { taipeiToday, minutesSince, parseServerTime, TAIPEI_TZ } from '../utils/time';
+import { HomeDateFilter, type HomeDateFilterKey } from '../utils/homeDateFilter';
 
-type DateFilter = 'today' | 'yesterday' | 'seven_days' | 'week' | 'month' | 'realtime' | 'custom';
+/**
+ * 今日抄表快取。同一台北日、5 分鐘內重用；換日即失效。
+ * 即時抄表分頁的 30 秒輪詢會略過這層，直接重抓。
+ */
+export class MachinesTodayCache {
+  static readonly ttlMs = 5 * 60 * 1000;
+
+  private static slot: { date: string; data: ReadingsResponse; cachedAt: number } | null = null;
+
+  static read(date: string, now = Date.now()): ReadingsResponse | null {
+    const slot = MachinesTodayCache.slot;
+    if (!slot || slot.date !== date) return null;
+    if (now - slot.cachedAt >= MachinesTodayCache.ttlMs) return null;
+    return slot.data;
+  }
+
+  static write(date: string, data: ReadingsResponse, now = Date.now()): void {
+    MachinesTodayCache.slot = { date, data, cachedAt: now };
+  }
+
+  static clear(): void {
+    MachinesTodayCache.slot = null;
+  }
+}
+
+type DateFilter = HomeDateFilterKey | 'realtime';
 type FilterStatus = 'all' | 'online' | 'offline';
 type SortBy = 'default' | 'revenue' | 'plays' | 'gifts';
-
-const DATE_FILTERS: { key: DateFilter; label: string }[] = [
-  { key: 'today', label: '今日' },
-  { key: 'yesterday', label: '昨日' },
-  { key: 'seven_days', label: '7天內' },
-  { key: 'week', label: '本週' },
-  { key: 'month', label: '本月' },
-  { key: 'realtime', label: '即時抄表' },
-  { key: 'custom', label: '自訂' },
-];
 
 const SORT_OPTIONS: { key: SortBy; label: string; icon: string }[] = [
   { key: 'default', label: '預設（場地 + 名稱）', icon: 'sort_by_alpha' },
@@ -50,38 +64,6 @@ interface MachineViewItem {
   gross_profit: number | null;
   last_reading_time: string | null;
   machineType: MachineType;
-}
-
-const formatDate = formatYmd;
-
-function getTodayString(): string {
-  return taipeiToday();
-}
-
-function getDateRange(filter: Exclude<DateFilter, 'realtime' | 'custom'>): { start: string; end: string } {
-  const now = taipeiNow();
-  const today = formatDate(now);
-  switch (filter) {
-    case 'today':
-      return { start: today, end: today };
-    case 'yesterday': {
-      const y = new Date(now); y.setDate(now.getDate() - 1);
-      const ys = formatDate(y);
-      return { start: ys, end: ys };
-    }
-    case 'seven_days': {
-      const d = new Date(now); d.setDate(now.getDate() - 6);
-      return { start: formatDate(d), end: today };
-    }
-    case 'week': {
-      const monday = new Date(now);
-      const offset = (now.getDay() === 0 ? 6 : now.getDay() - 1);
-      monday.setDate(now.getDate() - offset);
-      return { start: formatDate(monday), end: today };
-    }
-    case 'month':
-      return { start: formatDate(new Date(now.getFullYear(), now.getMonth(), 1)), end: today };
-  }
 }
 
 const getTimeDiffMinutes = minutesSince;
@@ -139,6 +121,16 @@ export const Machines: React.FC = () => {
 
   // 釘選
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(() => getPinnedIds());
+  const dateFilterRef = useRef<DateFilter>(dateFilter);
+  const customRangeRef = useRef({ start: customStart, end: customEnd });
+  const filterRequestRef = useRef(0);
+  const filterLoadingOwnerRef = useRef(0);
+  const readingsRequestRef = useRef(0);
+
+  useEffect(() => {
+    dateFilterRef.current = dateFilter;
+    customRangeRef.current = { start: customStart, end: customEnd };
+  }, [dateFilter, customStart, customEnd]);
 
   // 機台控制
   const [selectedMachine, setSelectedMachine] = useState<MachineViewItem | null>(null);
@@ -178,23 +170,36 @@ export const Machines: React.FC = () => {
   const [restockedTime, setRestockedTime] = useState<string | null>(null);
   const [checkedTime, setCheckedTime] = useState<string | null>(null);
 
-  // 今日資料（機台狀態用），5 分鐘 cache
-  const loadToday = useCallback(async (force = false) => {
-    if (!force && todayCache && Date.now() - todayCache.cachedAt < MACHINES_CACHE_TTL) {
-      setTodayReadings(todayCache.data);
-      setLoading(false);
-      return;
+  // 今日抄表（機台狀態用）。force 略過 5 分鐘快取；silent 不把列表閃成載入中。
+  const loadToday = useCallback(async (force = false, options?: { silent?: boolean }) => {
+    const date = taipeiToday();
+    if (!force) {
+      const cached = MachinesTodayCache.read(date);
+      if (cached) {
+        setTodayReadings(cached);
+        setLoading(false);
+        return;
+      }
     }
-    setLoading(true);
+
+    const requestId = ++readingsRequestRef.current;
+    const silent = options?.silent === true;
+    if (!silent) setLoading(true);
     try {
-      const data = await fetchReadings(getTodayString());
-      todayCache = { data, cachedAt: Date.now() };
+      const data = await fetchReadings(date);
+      if (requestId !== readingsRequestRef.current) return;
+      if (taipeiToday() !== date) {
+        void loadToday(true, options);
+        return;
+      }
+      MachinesTodayCache.write(date, data);
       setTodayReadings(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '載入失敗');
+      if (requestId !== readingsRequestRef.current) return;
+      if (!silent) setError(err instanceof Error ? err.message : '載入失敗');
     } finally {
-      setLoading(false);
+      if (requestId === readingsRequestRef.current) setLoading(false);
     }
   }, []);
 
@@ -202,35 +207,61 @@ export const Machines: React.FC = () => {
   const loadFilterData = useCallback(async (filter: DateFilter, customRange?: { start: string; end: string }) => {
     if (filter === 'realtime') return;
     if (filter === 'custom' && !customRange) return;
-    const range = filter === 'custom' ? customRange! : getDateRange(filter as Exclude<DateFilter, 'realtime' | 'custom'>);
+    const requestId = ++filterRequestRef.current;
+    filterLoadingOwnerRef.current = requestId;
+    const range = filter === 'custom'
+      ? { start: customRange!.start, end: customRange!.end }
+      : HomeDateFilter.range(filter);
     setFilterLoading(true);
     setFilterPayments(null);
+
+    const stillCurrent = () => {
+      if (requestId !== filterRequestRef.current) return false;
+      if (dateFilterRef.current !== filter) return false;
+      if (filter === 'custom' && customRange) {
+        const current = customRangeRef.current;
+        if (current.start !== customRange.start || current.end !== customRange.end) return false;
+      }
+      return true;
+    };
+
     try {
       const PAGE_SIZE = 100;
       const SAFETY_MAX_PAGES = 200; // 上限保險，避免後端錯誤造成無限迴圈
       const first = await fetchPayments(range.start, range.end, undefined, 1, PAGE_SIZE);
+      if (!stillCurrent()) return;
       let allItems = [...first.items];
       // 智慧翻頁：逐頁循序，不滿 PAGE_SIZE 立刻停，零浪費請求
       let page = 2;
       let hasMore = first.items.length === PAGE_SIZE;
       while (hasMore && page <= SAFETY_MAX_PAGES) {
         const r = await fetchPayments(range.start, range.end, undefined, page, PAGE_SIZE);
+        if (!stillCurrent()) return;
         allItems = allItems.concat(r.items);
         if (r.items.length < PAGE_SIZE) hasMore = false;
         page++;
       }
 
+      if (!stillCurrent()) return;
       setFilterPayments({ ...first, items: allItems });
     } catch (err) {
+      if (!stillCurrent()) return;
       console.error('載入篩選資料失敗:', err);
     } finally {
-      setFilterLoading(false);
+      if (filterLoadingOwnerRef.current === requestId) setFilterLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadToday();
-    const interval = setInterval(() => loadToday(), 30000);
+    const interval = setInterval(() => {
+      // 即時抄表要看到最多約 30 秒內的抄表，不能被 5 分鐘快取擋住
+      if (dateFilterRef.current === 'realtime') {
+        void loadToday(true, { silent: true });
+      } else {
+        void loadToday();
+      }
+    }, 30000);
     return () => clearInterval(interval);
   }, [loadToday]);
 
@@ -437,27 +468,50 @@ export const Machines: React.FC = () => {
           </div>
         </div>
 
-        {/* 日期快速篩選 */}
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-          {DATE_FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => {
-                if (key === 'custom') {
-                  setShowDateSheet(true);
-                } else {
-                  setDateFilter(key);
-                }
-              }}
-              className={`px-4 py-1 rounded-full text-xs font-bold shrink-0 transition-colors ${
-                dateFilter === key ? 'bg-primary text-black' : 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white'
-              }`}
-            >
-              {key === 'custom' && customStart && customEnd && dateFilter === 'custom'
-                ? `${customStart.slice(5)} ～ ${customEnd.slice(5)}`
-                : label}
-            </button>
-          ))}
+        {/* 即時抄表獨立於日期區間，仍走 readings */}
+        <button
+          type="button"
+          data-testid="machines-realtime-tab"
+          onClick={() => setDateFilter('realtime')}
+          className={`w-full mb-2 px-4 py-2 rounded-full text-xs font-bold transition-colors ${
+            dateFilter === 'realtime'
+              ? 'bg-primary text-background-dark'
+              : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-white hover:bg-slate-200 dark:hover:bg-white/15'
+          }`}
+        >
+          即時抄表
+        </button>
+
+        {/* 日期快速篩選：與首頁相同的兩列四顆 */}
+        <div data-testid="machines-date-filters" className="grid grid-cols-4 gap-2 pb-2">
+          {HomeDateFilter.labels.map((f) => {
+            const showingCustomRange = f.key === 'custom' && customStart && customEnd && dateFilter === 'custom';
+            const label = showingCustomRange
+              ? `${customStart.slice(5)} ～ ${customEnd.slice(5)}`
+              : f.label;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => {
+                  if (f.key === 'custom') {
+                    setShowDateSheet(true);
+                  } else {
+                    setDateFilter(f.key);
+                  }
+                }}
+                className={`min-w-0 w-full px-0.5 py-2 rounded-full font-bold leading-none text-center whitespace-nowrap transition-colors ${
+                  showingCustomRange ? 'text-[10px] tracking-tight' : 'text-xs'
+                } ${
+                  dateFilter === f.key
+                    ? 'bg-primary text-background-dark'
+                    : 'bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-white hover:bg-slate-200 dark:hover:bg-white/15'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {/* 機台狀態篩選 */}
